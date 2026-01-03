@@ -10,7 +10,8 @@ using api.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using api.Service;
+using api.Services;
+using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,8 +69,50 @@ builder.Services.AddControllers().AddNewtonsoftJson(options => {
 
 builder.Services.AddDbContext<ApplicationDBContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+
+// Upstash Redis Cache Configuration
+var redisUrl = builder.Configuration["Redis:Url"];
+var redisToken = builder.Configuration["Redis:Token"];
+
+if (!string.IsNullOrEmpty(redisUrl) && !string.IsNullOrEmpty(redisToken))
+{
+    // Upstash Redis connection string format
+    var connectionString = $"{redisUrl.Replace("https://", "").Replace("http://", "")}:6379,password={redisToken},ssl=True,abortConnect=False";
+    
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = connectionString;
+        options.InstanceName = "WatchHub_";
+    });
+}
+else
+{
+    // Fallback to in-memory cache if Redis is not configured
+    builder.Services.AddDistributedMemoryCache();
+}
+
+builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
+
+// Supabase Configuration
+var supabaseUrl = builder.Configuration["Supabase:Url"];
+var supabaseKey = builder.Configuration["Supabase:Key"];
+
+if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
+{
+    builder.Services.AddScoped<Client>(_ =>
+        new Client(
+            supabaseUrl,
+            supabaseKey,
+            new SupabaseOptions
+            {
+                AutoRefreshToken = true,
+                AutoConnectRealtime = true
+            }
+        )
+    );
+}
 
 builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
@@ -98,6 +141,21 @@ builder.Services.AddAuthentication(options => {
         IssuerSigningKey = new SymmetricSecurityKey(
             System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"])
         )
+    };
+    
+    // Also validate Supabase JWT tokens
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // Check if token is from Supabase (contains supabase-specific claims)
+            var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            if (!string.IsNullOrEmpty(token))
+            {
+                context.Token = token;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 

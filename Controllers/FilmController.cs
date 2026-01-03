@@ -4,6 +4,7 @@ using api.Dtos.Film;
 using api.Helpers;
 using api.Interfaces;
 using api.Mappers;
+using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,10 +15,12 @@ namespace api.Controllers
     public class FilmController : ControllerBase
     {
         private readonly IFilmRepository _filmRepo;
+        private readonly IRedisCacheService _cache;
 
-        public FilmController(IFilmRepository filmRepo)
+        public FilmController(IFilmRepository filmRepo, IRedisCacheService cache)
         {
             _filmRepo = filmRepo;
+            _cache = cache;
         }
 
         [HttpGet]
@@ -27,8 +30,23 @@ namespace api.Controllers
                 if(!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // Redis cache key based on query parameters
+            var cacheKey = $"films_list_{query.SortBy}_{query.IsDescending}_{query.PageNumber}_{query.PageSize}";
+            
+            // Try to get from cache
+            var cachedFilms = await _cache.GetCacheValueAsync<List<object>>(cacheKey);
+            if (cachedFilms != null)
+            {
+                return Ok(cachedFilms);
+            }
+
+            // If not in cache, get from database
             var films = await _filmRepo.GetAllAsync(query);
             var filmDto = films.Select(s => s.ToFilmDto()).ToList();
+            
+            // Store in cache for 1 hour
+            await _cache.SetCacheValueAsync(cacheKey, filmDto, TimeSpan.FromHours(1));
+            
             return Ok(filmDto);
         }
 
@@ -51,12 +69,27 @@ namespace api.Controllers
         {       if(!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // Try to get from cache
+            var cacheKey = $"film_{id}";
+            var cachedFilm = await _cache.GetCacheValueAsync<object>(cacheKey);
+            if (cachedFilm != null)
+            {
+                return Ok(cachedFilm);
+            }
+
+            // If not in cache, get from database
             var film = await _filmRepo.GetByIdAsync(id);
             if (film == null)
             {
                 return NotFound();
             }
-            return Ok(film.ToFilmDto());
+            
+            var filmDto = film.ToFilmDto();
+            
+            // Store in cache for 24 hours
+            await _cache.SetCacheValueAsync(cacheKey, filmDto, TimeSpan.FromHours(24));
+            
+            return Ok(filmDto);
         }
 
       [HttpPost]

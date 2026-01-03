@@ -1,7 +1,5 @@
 using System;
 using System.Linq;
-using System.Net;
-using System.Net.Mail;
 using System.Threading.Tasks;
 using api.Dtos.Account;
 using api.Interfaces;
@@ -10,8 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SendGrid;
-using SendGrid.Helpers.Mail;
 
 namespace api.Controllers
 {
@@ -62,25 +58,15 @@ namespace api.Controllers
             // Kullanıcının TwoFactorEnabled olup olmadığını kontrol et
             if (user.TwoFactorEnabled)
             {
-                // Kullanıcıdan 2FA kodu talep et ve doğrula
-                var verificationCode = new Random().Next(100000, 999999).ToString();
-                user.VerificationCode = verificationCode;
-                await _userManager.UpdateAsync(user);
-
-                var subject = "Your 2FA Verification Code";
-                var message = $"Your 2FA verification code is: {verificationCode}";
-
-                await SendEmailAsync(user.Email, subject, message);
-
-                // Kullanıcıya 2FA kodu girilmesini talep et
-                return Ok(new { TwoFactorRequired = true });
+                // 2FA is not supported with legacy auth - use Supabase Auth for MFA
+                return BadRequest("Two-factor authentication is only supported via Supabase Auth. Please use the new authentication system.");
             }
 
             return Ok(
                 new NewUserDto
                 {
-                    Username = user.UserName,
-                    Email = user.Email,
+                    Username = user.UserName ?? string.Empty,
+                    Email = user.Email ?? string.Empty,
                     Token = _tokenService.CreateToken(user)
                 }
             );
@@ -102,26 +88,20 @@ namespace api.Controllers
             var appUser = new AppUser
             {
                 UserName = registerDto.Username,
-                Email = registerDto.Email,
-                ActivationCode = Guid.NewGuid().ToString(), // Aktivasyon kodu oluştur
-                EmailConfirmed = false
+                Email = registerDto.Email
             };
 
-            var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password);
+            var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password ?? string.Empty);
 
             if (createdUser.Succeeded)
             {
                 var roleResult = await _userManager.AddToRoleAsync(appUser, "User");
                 if (roleResult.Succeeded)
                 {
-                    // Aktivasyon maili gönderme işlemi
-                    var confirmationLink = Url.Action(nameof(ConfirmEmail), "Account", new { userId = appUser.Id, code = appUser.ActivationCode.ToString() }, Request.Scheme);
-                    await SendEmailAsync(appUser.Email, "Email Verification", $"Please click on the following link to verify your email address: {confirmationLink}");
-
                     return Ok(new NewUserDto
                     {
-                        Username = appUser.UserName,
-                        Email = appUser.Email,
+                        Username = appUser.UserName ?? string.Empty,
+                        Email = appUser.Email ?? string.Empty,
                         Token = _tokenService.CreateToken(appUser)
                     });
                 }
@@ -139,101 +119,25 @@ namespace api.Controllers
         [HttpPost("enable-two-factor")]
         public async Task<IActionResult> EnableTwoFactor(string username)
         {
-            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == username.ToLower());
-
-            if (user == null) return NotFound("User not found");
-
-            user.TwoFactorEnabled = true;
-            var result = await _userManager.UpdateAsync(user);
-
-            if (!result.Succeeded)
-            {
-                return StatusCode(500, result.Errors);
-            }
-
-            return Ok("Two-Factor Authentication has been successfully enabled.");
+            // Two-factor authentication is temporarily disabled
+            return StatusCode(503, "Two-factor authentication is temporarily unavailable.");
         }
 
         [HttpPost("disable-two-factor")]
         public async Task<IActionResult> DisableTwoFactor(string username)
         {
-            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == username.ToLower());
-
-            if (user == null) return NotFound("User not found");
-
-            user.TwoFactorEnabled = false;
-            var result = await _userManager.UpdateAsync(user);
-
-            if (!result.Succeeded)
-            {
-                return StatusCode(500, result.Errors);
-            }
-
-            return Ok("Two-Factor Authentication has been successfully enabled.");
+            // Two-factor authentication is temporarily disabled
+            return StatusCode(503, "Two-factor authentication is temporarily unavailable.");
         }
 
-        [HttpGet("confirm-email")]
-        public async Task<IActionResult> ConfirmEmail(string userId, string code)
-        {
-            if (userId == null || code == null)
-            {
-                return BadRequest("Invalid request");
-            }
-
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                return NotFound("User not found");
-            }
-
-            if (user.ActivationCode != code)
-            {
-                return BadRequest("Invalid activation code");
-            }
-
-            user.EmailConfirmed = true;
-            user.ActivationCode = ""; // Kod kullanımını sıfırla
-            var result = await _userManager.UpdateAsync(user);
-
-            if (!result.Succeeded)
-            {
-                return StatusCode(500, result.Errors);
-            }
-
-            return Ok("Email confirmed successfully");
-        }
+        // Email verification is handled by Supabase automatically
+        // No manual confirmation endpoint needed
 
         [HttpPost("verify-two-factor")]
         public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == dto.Username.ToLower());
-
-            if (user == null)
-            {
-                return NotFound("User not found");
-            }
-
-            if (user.VerificationCode != dto.Code)
-            {
-                return BadRequest("Invalid verification code");
-            }
-
-            user.VerificationCode = ""; // Kodu sıfırla
-            await _userManager.UpdateAsync(user);
-
-            return Ok(
-                new NewUserDto
-                {
-                    Username = user.UserName,
-                    Email = user.Email,
-                    Token = _tokenService.CreateToken(user)
-                }
-            );
+            // Two-factor authentication is temporarily disabled
+            return StatusCode(503, "Two-factor authentication is temporarily unavailable.");
         }
 [HttpGet("user/{username}")]
 [Authorize]
@@ -247,8 +151,7 @@ public async Task<IActionResult> GetUser(string username)
                     u.Email,
                     FirstName = u.FirstName ?? string.Empty, // Null kontrolü
                     LastName = u.LastName ?? string.Empty,   // Null kontrolü
-                    Country = u.Country ?? string.Empty,     // Null kontrolü
-                    ProfilImageUrl = u.ProfilImageUrl ?? string.Empty // Null kontrolü
+                    Country = u.Country ?? string.Empty     // Null kontrolü
                 })
                 .FirstOrDefaultAsync();
 
@@ -263,6 +166,11 @@ public async Task<IActionResult> GetUser(string username)
 [Authorize]
 public async Task<IActionResult> UpdateUserProfile([FromForm] UpdateUserDto updateUserProfileDto)
 {
+    if (string.IsNullOrEmpty(updateUserProfileDto.Username))
+    {
+        return BadRequest("Username is required");
+    }
+    
     var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == updateUserProfileDto.Username.ToLower());
     if (user == null) return Unauthorized("User not found");
 
@@ -282,11 +190,6 @@ public async Task<IActionResult> UpdateUserProfile([FromForm] UpdateUserDto upda
         user.Country = updateUserProfileDto.Country;
     }
 
-    if (!string.IsNullOrEmpty(updateUserProfileDto.ProfilImageUrl))
-    {
-        user.ProfilImageUrl = updateUserProfileDto.ProfilImageUrl;
-    }
-
     var updateResult = await _userManager.UpdateAsync(user);
 
     if (!updateResult.Succeeded)
@@ -300,8 +203,7 @@ public async Task<IActionResult> UpdateUserProfile([FromForm] UpdateUserDto upda
         user.Email,
         user.FirstName,
         user.LastName,
-        user.Country,
-        user.ProfilImageUrl,
+        user.Country
     });
 }
 
@@ -313,24 +215,25 @@ public async Task<IActionResult> UpdateUserProfile([FromForm] UpdateUserDto upda
                 return BadRequest(ModelState);
             }
 
-            var subject = "Report & Contact Us";
-            var message = $"First Name: {dto.FirstName}\n    Last Name: {dto.LastName}\n    Message: {dto.Message}";
-
-            try
-            {
-                await SendEmailAsync("iletisimwatchhub@gmail.com", subject, message);
-                return Ok("Your message has been sent successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while sending the email: {ex.Message}");
-            }
+            // Contact form email sending is disabled - email service moved to Supabase
+            // Store contact messages in database or use a separate service
+            return StatusCode(501, "Contact form submission is temporarily unavailable. Please email directly to iletisimwatchhub@gmail.com");
         }
 
 
         [HttpDelete("delete/{username}")]
+        [Authorize]
         public async Task<IActionResult> DeleteUser(string username)
         {
+            // Get the authenticated user's username from the token
+            var authenticatedUsername = User.Identity?.Name;
+            
+            // Ensure the user can only delete their own account
+            if (authenticatedUsername == null || !authenticatedUsername.Equals(username, StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized("You can only delete your own account");
+            }
+
             var user = await _userManager.FindByNameAsync(username.ToLower());
             if (user == null) return NotFound("User not found");
 
@@ -338,7 +241,7 @@ public async Task<IActionResult> UpdateUserProfile([FromForm] UpdateUserDto upda
 
             if (result.Succeeded)
             {
-                return Ok("User deleted successfully");
+                return Ok("User account deleted successfully");
             }
             else
             {
@@ -380,32 +283,7 @@ public async Task<IActionResult> UpdateUserProfile([FromForm] UpdateUserDto upda
         }
 
 
-        private async Task SendEmailAsync(string email, string subject, string message)
-        {
-            var apiKey = Environment.GetEnvironmentVariable("SENDGRID_API_KEY");
-            var client = new SendGridClient(apiKey);
-            var from = new EmailAddress("iletisimwatchhub@gmail.com", "WatchHub");
-            var to = new EmailAddress(email);
-            var msg = MailHelper.CreateSingleEmail(from, to, subject, message, message);
-
-            // Email bilgilerini konsola yazdır
-            Console.WriteLine($"Sending email to: {email}");
-            Console.WriteLine($"Subject: {subject}");
-            Console.WriteLine($"Message: {message}");
-
-            var response = await client.SendEmailAsync(msg);
-
-            // İsteğe bağlı olarak yanıtı kontrol edebilirsiniz
-            if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.Accepted)
-            {
-                var responseBody = await response.Body.ReadAsStringAsync();
-                throw new Exception($"Failed to send email. Status code: {response.StatusCode}, Response body: {responseBody}");
-            }
-            else
-            {
-                Console.WriteLine("Varification Email is sent successfully.");
-            }
-        }
+        // Email verification is handled by Supabase - no SendEmailAsync needed
 
     }
 }

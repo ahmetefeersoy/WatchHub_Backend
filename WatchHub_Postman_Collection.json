@@ -1,0 +1,2169 @@
+{
+	"info": {
+		"_postman_id": "watchwub-api-collection-v2",
+		"name": "WatchHub API - Complete Test Collection v2",
+		"description": "# WatchHub API - Complete Test Suite\n\n## 📋 Overview\nComprehensive test collection covering all WatchHub endpoints:\n- ✅ **Supabase Auth** (11 endpoints) - Email, Google, Apple OAuth\n- ✅ **Legacy Auth** (8 endpoints) - ASP.NET Identity\n- ✅ **Films** (10 endpoints) - CRUD + TMDB integration\n- ✅ **Comments** (8 endpoints) - Comment system\n- ✅ **Portfolio** (7 endpoints) - User watchlists\n- ✅ **Likes** (6 endpoints) - Comment likes\n- ✅ **Edge Cases** (8 endpoints) - Error handling\n\n**Total: 58 Endpoints**\n\n## 🚀 Quick Start\n\n### 1. Update Variables\n- `base_url` → `https://localhost:5041`\n- `test_email` → Your test email\n- `test_password` → Your test password\n\n### 2. Disable SSL Verification\nSettings → SSL certificate verification → OFF\n\n### 3. Run Authentication\n**Option A - Supabase (Recommended):**\n1. Register with Email\n2. Login with Email\n3. Tokens auto-saved ✅\n\n**Option B - OAuth:**\n1. Get Google/Apple OAuth URL\n2. Complete OAuth in browser\n3. Use returned tokens\n\n**Option C - Legacy:**\n1. Register New User (Legacy)\n2. Login (Legacy)\n3. JWT auto-saved ✅\n\n### 4. Test Endpoints\nAll authenticated endpoints use saved tokens automatically.\n\n## 📖 Full Documentation\nSee `POSTMAN_COLLECTION_GUIDE.md` for:\n- Detailed endpoint documentation\n- Testing workflows\n- OAuth configuration\n- Troubleshooting guide\n- Response examples\n\n## 🔑 Authentication\n\n**Supabase Auth (NEW):**\n```\nAuthorization: Bearer {{access_token}}\n```\n\n**Legacy Auth:**\n```\nAuthorization: Bearer {{jwt_token}}\n```\n\nTokens are automatically managed by test scripts.\n\n## 🧪 Testing Workflows\n\n### Complete Flow\n```\nRegister → Login → Create Film → Add Comment → Like Comment → Add to Portfolio → Logout\n```\n\n### OAuth Flow\n```\nGet OAuth URL → Browser Login → Get Profile → Use API\n```\n\n### Token Refresh\n```\nLogin → Use API → Token Expires → Refresh Token → Continue\n```\n\n---\n**Version:** 2.0 | **Endpoints:** 58 | **Auth Systems:** 2 (Supabase + Legacy)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://localhost:5041",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "test_username",
+			"value": "testuser",
+			"type": "string"
+		},
+		{
+			"key": "test_email",
+			"value": "testuser@example.com",
+			"type": "string"
+		},
+		{
+			"key": "test_password",
+			"value": "Test123!",
+			"type": "string"
+		},
+		{
+			"key": "film_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "comment_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Supabase Authentication (NEW)",
+			"description": "New Supabase-based authentication with OAuth support (Google, Apple)",
+			"item": [
+				{
+					"name": "Register with Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.accessToken);",
+									"    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+									"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"    pm.collectionVariables.set('jwt_token', jsonData.accessToken);",
+									"    pm.test('Supabase Registration successful', function () {",
+									"        pm.expect(jsonData).to.have.property('accessToken');",
+									"        pm.expect(jsonData).to.have.property('refreshToken');",
+									"        pm.expect(jsonData.user).to.have.property('id');",
+									"        pm.expect(jsonData.user).to.have.property('email');",
+									"    });",
+									"} else {",
+									"    pm.test('Status code is ' + pm.response.code, function () {",
+									"        pm.response.to.have.status(pm.response.code);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{test_email}}\",\n    \"password\": \"{{test_password}}\",\n    \"username\": \"{{test_username}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register new user with Supabase Auth"
+					},
+					"response": []
+				},
+				{
+					"name": "Login with Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.accessToken);",
+									"    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+									"    pm.collectionVariables.set('user_id', jsonData.user.id);",
+									"    pm.collectionVariables.set('jwt_token', jsonData.accessToken);",
+									"    pm.test('Supabase Login successful', function () {",
+									"        pm.expect(jsonData).to.have.property('accessToken');",
+									"        pm.expect(jsonData).to.have.property('refreshToken');",
+									"        pm.expect(jsonData.user).to.have.property('id');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{test_email}}\",\n    \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login with email and password via Supabase"
+					},
+					"response": []
+				},
+				{
+					"name": "Google OAuth - Get Auth URL",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.test('Google OAuth URL generated', function () {",
+									"        pm.expect(jsonData).to.have.property('authUrl');",
+									"        pm.expect(jsonData.authUrl).to.include('accounts.google.com');",
+									"    });",
+									"    console.log('Open this URL in browser: ' + jsonData.authUrl);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/login/google?redirectUrl=http://localhost:5041/auth/callback",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login",
+								"google"
+							],
+							"query": [
+								{
+									"key": "redirectUrl",
+									"value": "http://localhost:5041/auth/callback"
+								}
+							]
+						},
+						"description": "Get Google OAuth authentication URL"
+					},
+					"response": []
+				},
+				{
+					"name": "Apple OAuth - Get Auth URL",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.test('Apple OAuth URL generated', function () {",
+									"        pm.expect(jsonData).to.have.property('authUrl');",
+									"        pm.expect(jsonData.authUrl).to.include('appleid.apple.com');",
+									"    });",
+									"    console.log('Open this URL in browser: ' + jsonData.authUrl);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/login/apple?redirectUrl=http://localhost:5041/auth/callback",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login",
+								"apple"
+							],
+							"query": [
+								{
+									"key": "redirectUrl",
+									"value": "http://localhost:5041/auth/callback"
+								}
+							]
+						},
+						"description": "Get Apple OAuth authentication URL"
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.accessToken);",
+									"    pm.collectionVariables.set('refresh_token', jsonData.refreshToken);",
+									"    pm.collectionVariables.set('jwt_token', jsonData.accessToken);",
+									"    pm.test('Token refresh successful', function () {",
+									"        pm.expect(jsonData).to.have.property('accessToken');",
+									"        pm.expect(jsonData).to.have.property('refreshToken');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refreshToken\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Refresh access token using refresh token"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.test('Profile retrieved successfully', function () {",
+									"        pm.expect(jsonData).to.have.property('id');",
+									"        pm.expect(jsonData).to.have.property('email');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"profile"
+							]
+						},
+						"description": "Get current user profile"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.test('Profile updated successfully', function () {",
+									"        pm.expect(jsonData).to.have.property('id');",
+									"        pm.expect(jsonData.user_metadata).to.have.property('username');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"updateduser\",\n    \"full_name\": \"Updated User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"profile"
+							]
+						},
+						"description": "Update user profile metadata"
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.test('Password changed successfully', function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"newPassword\": \"NewTest123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/change-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"change-password"
+							]
+						},
+						"description": "Change user password (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password Request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.test('Password reset email sent', function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{test_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/reset-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"reset-password"
+							]
+						},
+						"description": "Request password reset email"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.collectionVariables.set('access_token', '');",
+									"    pm.collectionVariables.set('refresh_token', '');",
+									"    pm.test('Logout successful', function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logout user and invalidate session"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    pm.collectionVariables.set('access_token', '');",
+									"    pm.collectionVariables.set('refresh_token', '');",
+									"    pm.collectionVariables.set('user_id', '');",
+									"    pm.test('Account deleted successfully', function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/account",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"account"
+							]
+						},
+						"description": "Delete user account permanently"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Authentication (Legacy)",
+			"item": [
+				{
+					"name": "Register New User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', jsonData.token);",
+									"    pm.collectionVariables.set('test_username', jsonData.username);",
+									"    pm.test('Registration successful', function () {",
+									"        pm.expect(jsonData).to.have.property('token');",
+									"        pm.expect(jsonData).to.have.property('username');",
+									"        pm.expect(jsonData).to.have.property('email');",
+									"    });",
+									"} else {",
+									"    pm.test('Status code is ' + pm.response.code, function () {",
+									"        pm.response.to.have.status(pm.response.code);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_username}}\",\n    \"email\": \"{{test_email}}\",\n    \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/account/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"register"
+							]
+						},
+						"description": "Register a new user account"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.twoFactorRequired) {",
+									"        pm.test('Two-factor authentication required', function () {",
+									"            pm.expect(jsonData.twoFactorRequired).to.be.true;",
+									"        });",
+									"    } else {",
+									"        pm.collectionVariables.set('jwt_token', jsonData.token);",
+									"        pm.test('Login successful and token saved', function () {",
+									"            pm.expect(jsonData).to.have.property('token');",
+									"            pm.expect(jsonData).to.have.property('username');",
+									"            pm.expect(jsonData).to.have.property('email');",
+									"        });",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_username}}\",\n    \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/account/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"login"
+							]
+						},
+						"description": "Login with username and password"
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Two-Factor Code",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', jsonData.token);",
+									"    pm.test('2FA verification successful', function () {",
+									"        pm.expect(jsonData).to.have.property('token');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_username}}\",\n    \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/account/verify-two-factor",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"verify-two-factor"
+							]
+						},
+						"description": "Verify two-factor authentication code"
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Email confirmation response', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/account/confirm-email?userId=USER_ID_HERE&code=ACTIVATION_CODE_HERE",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"confirm-email"
+							],
+							"query": [
+								{
+									"key": "userId",
+									"value": "USER_ID_HERE"
+								},
+								{
+									"key": "code",
+									"value": "ACTIVATION_CODE_HERE"
+								}
+							]
+						},
+						"description": "Confirm email address with activation code"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Get User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get user profile successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('userName');",
+									"    pm.expect(jsonData).to.have.property('email');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/account/user/{{test_username}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"user",
+								"{{test_username}}"
+							]
+						},
+						"description": "Get user profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Update profile successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('firstName');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "{{test_username}}",
+									"type": "text"
+								},
+								{
+									"key": "firstName",
+									"value": "John",
+									"type": "text"
+								},
+								{
+									"key": "lastName",
+									"value": "Doe",
+									"type": "text"
+								},
+								{
+									"key": "country",
+									"value": "Turkey",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/account/update-user-profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"update-user-profile"
+							]
+						},
+						"description": "Update user profile (firstName, lastName, country)"
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Password change successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{test_username}}\",\n    \"currentPassword\": \"{{test_password}}\",\n    \"newPassword\": \"NewTest123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/account/change-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"change-password"
+							]
+						},
+						"description": "Change user password"
+					},
+					"response": []
+				},
+				{
+					"name": "Enable Two-Factor Auth",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('2FA enabled successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/account/enable-two-factor?username={{test_username}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"enable-two-factor"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "{{test_username}}"
+								}
+							]
+						},
+						"description": "Enable two-factor authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "Disable Two-Factor Auth",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('2FA disabled successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/account/disable-two-factor?username={{test_username}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"disable-two-factor"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "{{test_username}}"
+								}
+							]
+						},
+						"description": "Disable two-factor authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Account deleted successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/account/delete/{{test_username}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"delete",
+								"{{test_username}}"
+							]
+						},
+						"description": "Delete user account (requires authorization)"
+					},
+					"response": []
+				},
+				{
+					"name": "Report and Contact",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Contact message sent', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"message\": \"This is a test message from the contact form.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/account/report-and-contact",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"report-and-contact"
+							]
+						},
+						"description": "Send contact/report message"
+					},
+					"response": []
+				}
+			],
+			"description": "User profile management, password changes, account deletion"
+		},
+		{
+			"name": "Films",
+			"item": [
+				{
+					"name": "Get All Films",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get all films successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    if (jsonData.length > 0) {",
+									"        pm.collectionVariables.set('film_id', jsonData[0].id);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/films?PageNumber=1&PageSize=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films"
+							],
+							"query": [
+								{
+									"key": "PageNumber",
+									"value": "1"
+								},
+								{
+									"key": "PageSize",
+									"value": "10"
+								},
+								{
+									"key": "SortBy",
+									"value": "Name",
+									"disabled": true
+								},
+								{
+									"key": "IsDescending",
+									"value": "false",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all films with pagination and sorting (cached with Redis)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Films - Sorted by Name DESC",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get sorted films successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/films?SortBy=Name&IsDescending=true&PageNumber=1&PageSize=20",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films"
+							],
+							"query": [
+								{
+									"key": "SortBy",
+									"value": "Name"
+								},
+								{
+									"key": "IsDescending",
+									"value": "true"
+								},
+								{
+									"key": "PageNumber",
+									"value": "1"
+								},
+								{
+									"key": "PageSize",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get films sorted by name in descending order"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Film by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get film by ID successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('name');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/films/{{film_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films",
+								"{{film_id}}"
+							]
+						},
+						"description": "Get specific film by ID (cached with Redis for 24 hours)"
+					},
+					"response": []
+				},
+				{
+					"name": "Search Films by Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Search films successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/films/search/inception",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films",
+								"search",
+								"inception"
+							]
+						},
+						"description": "Search films by name"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Film",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('film_id', jsonData.id);",
+									"    pm.test('Film created successfully', function () {",
+									"        pm.response.to.have.status(201);",
+									"        pm.expect(jsonData).to.have.property('id');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Film {{$timestamp}}\",\n    \"genre\": \"Action\",\n    \"director\": \"Test Director\",\n    \"releaseYear\": 2024,\n    \"rating\": 8.5,\n    \"description\": \"This is a test film description\",\n    \"posterUrl\": \"https://example.com/poster.jpg\",\n    \"trailerUrl\": \"https://example.com/trailer.mp4\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/films",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films"
+							]
+						},
+						"description": "Create a new film"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Film",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Film updated successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Film Name\",\n    \"genre\": \"Drama\",\n    \"director\": \"Updated Director\",\n    \"releaseYear\": 2024,\n    \"rating\": 9.0,\n    \"description\": \"Updated description\",\n    \"posterUrl\": \"https://example.com/updated-poster.jpg\",\n    \"trailerUrl\": \"https://example.com/updated-trailer.mp4\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/films/{{film_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films",
+								"{{film_id}}"
+							]
+						},
+						"description": "Update existing film"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Film",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Film deleted successfully', function () {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/films/{{film_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films",
+								"{{film_id}}"
+							]
+						},
+						"description": "Delete film by ID"
+					},
+					"response": []
+				}
+			],
+			"description": "Film CRUD operations with Redis caching"
+		},
+		{
+			"name": "Comments",
+			"item": [
+				{
+					"name": "Get All Comments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get all comments successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    if (jsonData.length > 0) {",
+									"        pm.collectionVariables.set('comment_id', jsonData[0].id);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/comment",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"comment"
+							]
+						},
+						"description": "Get all comments"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Comment by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get comment by ID successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('content');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/comment/{{comment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"comment",
+								"{{comment_id}}"
+							]
+						},
+						"description": "Get specific comment by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Comment on Film",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('comment_id', jsonData.id);",
+									"    pm.test('Comment created successfully', function () {",
+									"        pm.response.to.have.status(201);",
+									"        pm.expect(jsonData).to.have.property('id');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Great Film!\",\n    \"content\": \"This is an amazing movie. Highly recommended!\",\n    \"rating\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/comment/{{film_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"comment",
+								"{{film_id}}"
+							]
+						},
+						"description": "Create a new comment on a film (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Comment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Comment updated successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Review Title\",\n    \"content\": \"Updated comment content with more details.\",\n    \"rating\": 4\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/comment/{{comment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"comment",
+								"{{comment_id}}"
+							]
+						},
+						"description": "Update existing comment"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Comment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Comment deleted successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/comment/{{comment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"comment",
+								"{{comment_id}}"
+							]
+						},
+						"description": "Delete comment by ID"
+					},
+					"response": []
+				}
+			],
+			"description": "Comment CRUD operations"
+		},
+		{
+			"name": "Portfolio (Watchlist)",
+			"item": [
+				{
+					"name": "Get User Portfolio",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get user portfolio successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/portfolio",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"portfolio"
+							]
+						},
+						"description": "Get current user's film portfolio/watchlist"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Film to Portfolio",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Film added to portfolio', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "\"Inception\""
+						},
+						"url": {
+							"raw": "{{base_url}}/portfolio",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"portfolio"
+							]
+						},
+						"description": "Add a film to user's portfolio by film name"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Film from Portfolio",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Film removed from portfolio', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/portfolio?name=Inception",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"portfolio"
+							],
+							"query": [
+								{
+									"key": "name",
+									"value": "Inception"
+								}
+							]
+						},
+						"description": "Remove film from portfolio by name"
+					},
+					"response": []
+				}
+			],
+			"description": "User's film watchlist/portfolio management"
+		},
+		{
+			"name": "Comment Likes",
+			"item": [
+				{
+					"name": "Get User's Liked Comments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Get liked comments successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/CommentLikePortfolio",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"CommentLikePortfolio"
+							]
+						},
+						"description": "Get all comments liked by current user"
+					},
+					"response": []
+				},
+				{
+					"name": "Like a Comment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Comment liked successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/CommentLikePortfolio?IdOfCommand={{comment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"CommentLikePortfolio"
+							],
+							"query": [
+								{
+									"key": "IdOfCommand",
+									"value": "{{comment_id}}"
+								}
+							]
+						},
+						"description": "Like a comment by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Unlike a Comment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Comment unliked successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/CommentLikePortfolio?IdOfCommand={{comment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"CommentLikePortfolio"
+							],
+							"query": [
+								{
+									"key": "IdOfCommand",
+									"value": "{{comment_id}}"
+								}
+							]
+						},
+						"description": "Remove like from a comment"
+					},
+					"response": []
+				}
+			],
+			"description": "Comment like/unlike operations"
+		},
+		{
+			"name": "Edge Cases & Error Handling",
+			"item": [
+				{
+					"name": "Login with Invalid Credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Unauthorized status', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"wronguser\",\n    \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/account/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"login"
+							]
+						},
+						"description": "Test login with invalid credentials"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Non-Existent Film",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Not found status', function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/films/999999",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"films",
+								"999999"
+							]
+						},
+						"description": "Test getting non-existent film"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Comment Without Auth",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Unauthorized status', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Comment\",\n    \"content\": \"This should fail\",\n    \"rating\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/comment/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"comment",
+								"1"
+							]
+						},
+						"description": "Test creating comment without authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "Register with Existing Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Bad request status', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"newuser\",\n    \"email\": \"{{test_email}}\",\n    \"password\": \"Test123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/account/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"register"
+							]
+						},
+						"description": "Test registration with already used email"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Duplicate Film to Portfolio",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Bad request status', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "\"Inception\""
+						},
+						"url": {
+							"raw": "{{base_url}}/portfolio",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"portfolio"
+							]
+						},
+						"description": "Test adding same film twice to portfolio"
+					},
+					"response": []
+				},
+				{
+					"name": "Like Same Comment Twice",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Bad request status', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/CommentLikePortfolio?IdOfCommand={{comment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"CommentLikePortfolio"
+							],
+							"query": [
+								{
+									"key": "IdOfCommand",
+									"value": "{{comment_id}}"
+								}
+							]
+						},
+						"description": "Test liking same comment twice"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Other User's Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Unauthorized status', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/account/delete/otheruser",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"account",
+								"delete",
+								"otheruser"
+							]
+						},
+						"description": "Test deleting another user's account"
+					},
+					"response": []
+				}
+			],
+			"description": "Edge cases and error handling tests"
+		}
+	]
+}

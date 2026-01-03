@@ -7,10 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 using api.Interfaces;
 using api.Model;
-using Microsoft.Identity.Client;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Configuration;
 
-namespace api.Service
+namespace api.Services
 {
     
     public class TokenService : ITokenService
