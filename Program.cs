@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using api.Services;
 using Supabase;
+using api.Middleware;
+using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -132,27 +134,67 @@ builder.Services.AddAuthentication(options => {
     options.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
 
 }).AddJwtBearer(options =>{
+    // Disable default Microsoft JWT claim mapping
+    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+    
     options.TokenValidationParameters = new TokenValidationParameters{
         ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["JWT:Issuer"],
-        ValidateAudience = true,
-        ValidAudience = builder.Configuration["JWT:Audience"],
+        ValidateAudience = false, // Supabase tokens don't always have consistent audience
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"])
-        )
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero,
+        
+        // Accept both local JWT and Supabase JWT
+        ValidIssuers = new[] {
+            builder.Configuration["JWT:Issuer"],
+            $"https://nevoszkwoejobfokkbjt.supabase.co/auth/v1" // Supabase issuer
+        },
+        
+        // We'll validate signing key in event handler
+        IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
+        {
+            // Get the token as JwtSecurityToken
+            var jwtToken = securityToken as JwtSecurityToken;
+            var issuer = jwtToken?.Issuer;
+            
+            // If it's a Supabase token, use Supabase JWT secret
+            if (issuer != null && issuer.Contains("supabase"))
+            {
+                // Use the Supabase JWT secret from configuration
+                var supabaseJwtSecret = builder.Configuration["Supabase:JwtSecret"];
+                
+                if (string.IsNullOrEmpty(supabaseJwtSecret))
+                {
+                    // Fallback to using part of the anon key (not recommended for production)
+                    // In production, you should get the JWT secret from Supabase project settings
+                    supabaseJwtSecret = builder.Configuration["Supabase:Key"];
+                }
+                
+                return new[] { new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(supabaseJwtSecret)) };
+            }
+            
+            // Otherwise use local JWT signing key
+            var signingKey = builder.Configuration["JWT:SigningKey"];
+            return new[] { new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(signingKey)) };
+        }
     };
     
-    // Also validate Supabase JWT tokens
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
-            // Check if token is from Supabase (contains supabase-specific claims)
             var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
             if (!string.IsNullOrEmpty(token))
             {
                 context.Token = token;
+            }
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
+        {
+            if (context.Exception is SecurityTokenExpiredException)
+            {
+                context.Response.Headers.Append("Token-Expired", "true");
             }
             return Task.CompletedTask;
         }
@@ -169,6 +211,12 @@ builder.Services.AddScoped<ICommentLikePortfolioRepository, CommentLikePortfolio
 
 var app = builder.Build();
 
+// Add CORS for frontend
+app.UseCors(policy => policy
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader());
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
@@ -177,6 +225,11 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 }
 
 app.UseHttpsRedirection();
+
+// Use custom Supabase JWT validation middleware
+// This middleware will validate Supabase tokens before the standard authentication
+app.UseSupabaseJwtValidation();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

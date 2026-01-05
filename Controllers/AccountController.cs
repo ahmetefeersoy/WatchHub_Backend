@@ -11,8 +11,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers
 {
+    /// <summary>
+    /// Legacy Account Controller - Authentication endpoints have been moved to SupabaseAuthController
+    /// This controller now only handles profile management operations
+    /// </summary>
     [Route("api/account")]
     [ApiController]
+    [Obsolete("Authentication endpoints are deprecated. Use /api/auth endpoints (SupabaseAuthController) instead.")]
     public class AccountController : ControllerBase
     {
         private readonly UserManager<AppUser> _userManager;
@@ -26,118 +31,60 @@ namespace api.Controllers
             _signInManager = signInManager;
         }
 
+        /// <summary>
+        /// [DEPRECATED] Use /api/auth/login instead
+        /// </summary>
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginDto loginDto)
+        [Obsolete("This endpoint is deprecated. Use /api/auth/login (SupabaseAuthController) instead.")]
+        public IActionResult Login()
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == loginDto.Username.ToLower());
-
-            if (user == null) return Unauthorized("Invalid Username");
-
-            if (string.IsNullOrEmpty(user.Email))
-            {
-                return Unauthorized("Email alanı boş olamaz.");
-            }
-
-            if (!user.EmailConfirmed)
-            {
-                return Unauthorized("Please confirm your email address before logging in.");
-            }
-
-            var result = await _signInManager.CheckPasswordSignInAsync(user, loginDto.Password, false);
-
-            if (!result.Succeeded)
-            {
-                return Unauthorized("Username not found and/or password incorrect");
-            }
-
-            // Kullanıcının TwoFactorEnabled olup olmadığını kontrol et
-            if (user.TwoFactorEnabled)
-            {
-                // 2FA is not supported with legacy auth - use Supabase Auth for MFA
-                return BadRequest("Two-factor authentication is only supported via Supabase Auth. Please use the new authentication system.");
-            }
-
-            return Ok(
-                new NewUserDto
-                {
-                    Username = user.UserName ?? string.Empty,
-                    Email = user.Email ?? string.Empty,
-                    Token = _tokenService.CreateToken(user)
-                }
-            );
+            return BadRequest(new { 
+                message = "This endpoint is deprecated. Please use /api/auth/login for Supabase authentication.",
+                newEndpoint = "/api/auth/login"
+            });
         }
 
+        /// <summary>
+        /// [DEPRECATED] Use /api/auth/register instead
+        /// </summary>
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+        [Obsolete("This endpoint is deprecated. Use /api/auth/register (SupabaseAuthController) instead.")]
+        public IActionResult Register()
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            // E-posta kontrolü
-            var emailExists = await _userManager.Users.AnyAsync(u => u.Email == registerDto.Email);
-            if (emailExists)
-            {
-                return BadRequest("Bu e-posta adresi zaten kullanılıyor.");
-            }
-
-            var appUser = new AppUser
-            {
-                UserName = registerDto.Username,
-                Email = registerDto.Email
-            };
-
-            var createdUser = await _userManager.CreateAsync(appUser, registerDto.Password ?? string.Empty);
-
-            if (createdUser.Succeeded)
-            {
-                var roleResult = await _userManager.AddToRoleAsync(appUser, "User");
-                if (roleResult.Succeeded)
-                {
-                    return Ok(new NewUserDto
-                    {
-                        Username = appUser.UserName ?? string.Empty,
-                        Email = appUser.Email ?? string.Empty,
-                        Token = _tokenService.CreateToken(appUser)
-                    });
-                }
-                else
-                {
-                    return StatusCode(500, roleResult.Errors);
-                }
-            }
-            else
-            {
-                return StatusCode(500, createdUser.Errors);
-            }
+            return BadRequest(new { 
+                message = "This endpoint is deprecated. Please use /api/auth/register for Supabase authentication.",
+                newEndpoint = "/api/auth/register"
+            });
         }
 
+        /// <summary>
+        /// [DEPRECATED] Two-factor authentication is now handled by Supabase
+        /// </summary>
         [HttpPost("enable-two-factor")]
-        public async Task<IActionResult> EnableTwoFactor(string username)
+        [Obsolete("Two-factor authentication is now handled by Supabase.")]
+        public IActionResult EnableTwoFactor()
         {
-            // Two-factor authentication is temporarily disabled
-            return StatusCode(503, "Two-factor authentication is temporarily unavailable.");
+            return StatusCode(503, new { message = "Two-factor authentication is now handled by Supabase. Please enable MFA in your Supabase account settings." });
         }
 
+        /// <summary>
+        /// [DEPRECATED] Two-factor authentication is now handled by Supabase
+        /// </summary>
         [HttpPost("disable-two-factor")]
-        public async Task<IActionResult> DisableTwoFactor(string username)
+        [Obsolete("Two-factor authentication is now handled by Supabase.")]
+        public IActionResult DisableTwoFactor()
         {
-            // Two-factor authentication is temporarily disabled
-            return StatusCode(503, "Two-factor authentication is temporarily unavailable.");
+            return StatusCode(503, new { message = "Two-factor authentication is now handled by Supabase. Please disable MFA in your Supabase account settings." });
         }
 
-        // Email verification is handled by Supabase automatically
-        // No manual confirmation endpoint needed
-
+        /// <summary>
+        /// [DEPRECATED] Email verification is now handled automatically by Supabase
+        /// </summary>
         [HttpPost("verify-two-factor")]
-        public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorDto dto)
+        [Obsolete("Email verification is now handled automatically by Supabase.")]
+        public IActionResult VerifyTwoFactor()
         {
-            // Two-factor authentication is temporarily disabled
-            return StatusCode(503, "Two-factor authentication is temporarily unavailable.");
+            return StatusCode(503, new { message = "Email verification is now handled automatically by Supabase." });
         }
 [HttpGet("user/{username}")]
 [Authorize]
