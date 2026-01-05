@@ -100,7 +100,7 @@ builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
 
 // Supabase Configuration
 var supabaseUrl = builder.Configuration["Supabase:Url"];
-var supabaseKey = builder.Configuration["Supabase:Key"];
+var supabaseKey = builder.Configuration["Supabase:ServiceRole"];
 
 if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
 {
