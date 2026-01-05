@@ -51,3 +51,10 @@ obj/
 *.user
 *.rsuser
 *.suo
+
+appsettings.Development.json
+appsettings.Local.json
+appsettings.json
+secrets.json
+# SQL Server files
+*.mdf
