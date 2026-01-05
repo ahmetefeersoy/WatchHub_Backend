@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using api.Dtos.Comment;
 
-namespace api.Dtos.FilmDto
+namespace api.Dtos.Film
 {
     public class FilmDto
     {

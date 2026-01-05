@@ -6,7 +6,7 @@ namespace api.Services
 {
     public interface ITmdbService
     {
-        Task<List<Films>> FetchPopularMoviesAsync(int page = 1, int limit = 5);
+        Task<List<Films>> FetchPopularMoviesAsync(int page = 1, int limit = 5, int? genreId = null);
         Task<Films> FetchMovieDetailsAsync(int tmdbId);
     }
 
@@ -38,20 +38,34 @@ namespace api.Services
             }
         }
 
-        public async Task<List<Films>> FetchPopularMoviesAsync(int page = 1, int limit = 5)
+        public async Task<List<Films>> FetchPopularMoviesAsync(int page = 1, int limit = 5, int? genreId = null)
         {
             try
             {
-                // Use Bearer token if available, otherwise use api_key parameter
-                var url = !string.IsNullOrEmpty(_accessToken)
-                    ? $"{_baseUrl}/movie/popular?page={page}&language=en-US"
-                    : $"{_baseUrl}/movie/popular?api_key={_apiKey}&page={page}&language=en-US";
+                // Use discover endpoint if genre is specified, otherwise use popular
+                string endpoint;
+                if (genreId.HasValue)
+                {
+                    // Use Bearer token if available, otherwise use api_key parameter
+                    endpoint = !string.IsNullOrEmpty(_accessToken)
+                        ? $"/discover/movie?with_genres={genreId.Value}&page={page}&language=en-US&sort_by=popularity.desc"
+                        : $"/discover/movie?api_key={_apiKey}&with_genres={genreId.Value}&page={page}&language=en-US&sort_by=popularity.desc";
+                }
+                else
+                {
+                    endpoint = !string.IsNullOrEmpty(_accessToken)
+                        ? $"/movie/popular?page={page}&language=en-US"
+                        : $"/movie/popular?api_key={_apiKey}&page={page}&language=en-US";
+                }
+
+                var url = $"{_baseUrl}{endpoint}";
                     
                 var response = await _httpClient.GetAsync(url);
                 
                 if (!response.IsSuccessStatusCode)
                 {
-                    throw new Exception($"TMDB API error: {response.StatusCode}");
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"TMDB API error: {response.StatusCode}, Details: {errorContent}");
                 }
 
                 var content = await response.Content.ReadAsStringAsync();

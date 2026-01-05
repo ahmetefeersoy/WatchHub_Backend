@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.Dtos.Film;
@@ -151,14 +152,38 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
 
             try
             {
-                var movies = await _tmdbService.FetchPopularMoviesAsync(request.Page, request.Limit);
+                // Check cache first (6 hour expiry for TMDB data)
+                // Include genreId in cache key for genre-specific caching
+                var cacheKey = request.GenreId.HasValue
+                    ? $"tmdb_genre_{request.GenreId}_p{request.Page}_l{request.Limit}"
+                    : $"tmdb_popular_p{request.Page}_l{request.Limit}";
+                    
+                var cachedData = await _cache.GetCacheValueAsync<List<FilmDto>>(cacheKey);
+                
+                if (cachedData != null)
+                {
+                    return Ok(new 
+                    { 
+                        Message = "Preview from cache",
+                        Count = cachedData.Count,
+                        Films = cachedData,
+                        Cached = true
+                    });
+                }
+
+                // Fetch from TMDB if not cached (with optional genre filter)
+                var movies = await _tmdbService.FetchPopularMoviesAsync(request.Page, request.Limit, request.GenreId);
                 var filmDtos = movies.Select(m => m.ToFilmDto()).ToList();
+                
+                // Cache for 6 hours
+                await _cache.SetCacheValueAsync(cacheKey, filmDtos, TimeSpan.FromHours(6));
                 
                 return Ok(new 
                 { 
-                    Message = "Preview only - these films will NOT be saved to database",
+                    Message = "Preview from TMDB",
                     Count = filmDtos.Count,
-                    Films = filmDtos 
+                    Films = filmDtos,
+                    Cached = false
                 });
             }
             catch (Exception ex)
@@ -179,7 +204,7 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
 
             try
             {
-                var movies = await _tmdbService.FetchPopularMoviesAsync(request.Page, request.Limit);
+                var movies = await _tmdbService.FetchPopularMoviesAsync(request.Page, request.Limit, request.GenreId);
                 var savedFilms = new List<Films>();
 
                 foreach (var movie in movies)

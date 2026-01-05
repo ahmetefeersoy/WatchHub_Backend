@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using api.Dtos.Film;
-using api.Dtos.FilmDto;
 using api.Model;
 
 namespace api.Mappers
