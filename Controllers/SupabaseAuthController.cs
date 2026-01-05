@@ -11,6 +11,7 @@ namespace api.Controllers
 {
     [Route("api/auth")]
     [ApiController]
+    [Authorize]
     public class SupabaseAuthController : ControllerBase
     {
         private readonly Supabase.Client _supabase;
@@ -26,6 +27,7 @@ namespace api.Controllers
         /// Register a new user with email and password
         /// </summary>
         [HttpPost("register")]
+        [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             try
@@ -70,6 +72,7 @@ namespace api.Controllers
         /// Login with email and password
         /// </summary>
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             try
@@ -109,6 +112,7 @@ namespace api.Controllers
         /// Login with Google OAuth (TEMPORARILY DISABLED)
         /// </summary>
         [HttpPost("login/google")]
+        [AllowAnonymous]
         public async Task<IActionResult> LoginWithGoogle()
         {
             // Temporarily disabled - only email authentication is available
@@ -119,6 +123,7 @@ namespace api.Controllers
         /// Login with Apple OAuth (TEMPORARILY DISABLED)
         /// </summary>
         [HttpPost("login/apple")]
+        [AllowAnonymous]
         public async Task<IActionResult> LoginWithApple()
         {
             // Temporarily disabled - only email authentication is available
@@ -179,6 +184,7 @@ namespace api.Controllers
         /// Refresh access token
         /// </summary>
         [HttpPost("refresh")]
+        [AllowAnonymous]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
             try
@@ -318,6 +324,7 @@ namespace api.Controllers
         /// Reset password request
         /// </summary>
         [HttpPost("reset-password")]
+        [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
             try

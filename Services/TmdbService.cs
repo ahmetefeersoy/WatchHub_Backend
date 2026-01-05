@@ -13,20 +13,40 @@ namespace api.Services
     public class TmdbService : ITmdbService
     {
         private readonly HttpClient _httpClient;
-        private const string TMDB_API_KEY = "5e7d25b41269fe9475ddcdf31e6e7b74";
-        private const string TMDB_BASE_URL = "https://api.themoviedb.org/3";
-        private const string TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
+        private readonly string _apiKey;
+        private readonly string _accessToken;
+        private readonly string _baseUrl;
+        private readonly string _imageBaseUrl;
 
-        public TmdbService(HttpClient httpClient)
+        public TmdbService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
+            _apiKey = configuration["TMDB:ApiKey"] ?? throw new InvalidOperationException("TMDB API Key not configured");
+            _accessToken = configuration["TMDB:AccessToken"] ?? "";
+            _baseUrl = configuration["TMDB:BaseUrl"] ?? "https://api.themoviedb.org/3";
+            _imageBaseUrl = configuration["TMDB:ImageBaseUrl"] ?? "https://image.tmdb.org/t/p";
+            
+            // Set headers for TMDB API v4 (Bearer token preferred)
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "WatchHub/1.0");
+            
+            // Use Bearer token if available, otherwise fall back to API key
+            if (!string.IsNullOrEmpty(_accessToken))
+            {
+                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_accessToken}");
+            }
         }
 
         public async Task<List<Films>> FetchPopularMoviesAsync(int page = 1, int limit = 5)
         {
             try
             {
-                var url = $"{TMDB_BASE_URL}/movie/popular?api_key={TMDB_API_KEY}&page={page}&language=en-US";
+                // Use Bearer token if available, otherwise use api_key parameter
+                var url = !string.IsNullOrEmpty(_accessToken)
+                    ? $"{_baseUrl}/movie/popular?page={page}&language=en-US"
+                    : $"{_baseUrl}/movie/popular?api_key={_apiKey}&page={page}&language=en-US";
+                    
                 var response = await _httpClient.GetAsync(url);
                 
                 if (!response.IsSuccessStatusCode)
@@ -65,7 +85,11 @@ namespace api.Services
         {
             try
             {
-                var url = $"{TMDB_BASE_URL}/movie/{tmdbId}?api_key={TMDB_API_KEY}&language=en-US&append_to_response=videos,credits";
+                // Use Bearer token if available, otherwise use api_key parameter
+                var url = !string.IsNullOrEmpty(_accessToken)
+                    ? $"{_baseUrl}/movie/{tmdbId}?language=en-US&append_to_response=videos,credits"
+                    : $"{_baseUrl}/movie/{tmdbId}?api_key={_apiKey}&language=en-US&append_to_response=videos,credits";
+                    
                 var response = await _httpClient.GetAsync(url);
                 
                 if (!response.IsSuccessStatusCode)
@@ -122,7 +146,7 @@ namespace api.Services
                 Duration = tmdbMovie.Runtime > 0 ? tmdbMovie.Runtime : 0,
                 Platform = "TMDB",
                 CoverImageUrl = !string.IsNullOrEmpty(tmdbMovie.PosterPath) 
-                    ? $"{TMDB_IMAGE_BASE_URL}/w500{tmdbMovie.PosterPath}" 
+                    ? $"{_imageBaseUrl}/w500{tmdbMovie.PosterPath}" 
                     : "",
                 TrailerUrl = trailer != null 
                     ? $"https://www.youtube.com/watch?v={trailer.Key}" 

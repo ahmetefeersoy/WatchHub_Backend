@@ -8,6 +8,7 @@ namespace api.Controllers
 {
     [Route("api/CommentLikePortfolio")]
     [ApiController]
+    [Authorize]
     public class CommentLikePortfolioController : ControllerBase
     {
         private readonly UserManager<AppUser> _userManager;

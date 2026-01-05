@@ -4,6 +4,7 @@ using api.Dtos.Film;
 using api.Helpers;
 using api.Interfaces;
 using api.Mappers;
+using api.Model;
 using api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,7 @@ namespace api.Controllers
 {
     [Route("api/films")]
     [ApiController]
+    [Authorize]
     public class FilmController : ControllerBase
     {
         private readonly IFilmRepository _filmRepo;
@@ -26,7 +28,6 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        [Authorize]
         public async Task<IActionResult> GetAll([FromQuery] QueryObject query)
         {   
                 if(!ModelState.IsValid)
@@ -46,8 +47,8 @@ namespace api.Controllers
             var films = await _filmRepo.GetAllAsync(query);
             var filmDto = films.Select(s => s.ToFilmDto()).ToList();
             
-            // Store in cache for 1 hour
-            await _cache.SetCacheValueAsync(cacheKey, filmDto, TimeSpan.FromHours(1));
+            // Store in cache for 6 hours (recommended for popular/trending lists)
+            await _cache.SetCacheValueAsync(cacheKey, filmDto, TimeSpan.FromHours(6));
             
             return Ok(filmDto);
         }
@@ -139,11 +140,14 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
         }
 
         [HttpPost("import-from-tmdb/preview")]
-        [Authorize]
         public async Task<IActionResult> PreviewImportFromTmdb([FromBody] ImportFilmRequestDto request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            // TMDB API requires page >= 1
+            if (request.Page < 1) request.Page = 1;
+            if (request.Limit < 1) request.Limit = 5;
 
             try
             {
@@ -164,11 +168,14 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
         }
 
         [HttpPost("import-from-tmdb")]
-        [Authorize]
         public async Task<IActionResult> ImportFromTmdb([FromBody] ImportFilmRequestDto request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            // TMDB API requires page >= 1
+            if (request.Page < 1) request.Page = 1;
+            if (request.Limit < 1) request.Limit = 5;
 
             try
             {

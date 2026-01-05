@@ -13,13 +13,6 @@ namespace api.Model
         public string LastName { get; set; } = String.Empty;
 
         public string Country { get; set; } = String.Empty;
-
-        public bool EmailConfirmed { get; set; }
-        public string ActivationCode { get; set; } = String.Empty;
-
-        public string VerificationCode { get; set; } = String.Empty;
         public string ProfilImageUrl { get; set; } = String.Empty;
-
-
     }
 }
