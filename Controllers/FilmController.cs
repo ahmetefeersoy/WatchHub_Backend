@@ -16,11 +16,13 @@ namespace api.Controllers
     {
         private readonly IFilmRepository _filmRepo;
         private readonly IRedisCacheService _cache;
+        private readonly ITmdbService _tmdbService;
 
-        public FilmController(IFilmRepository filmRepo, IRedisCacheService cache)
+        public FilmController(IFilmRepository filmRepo, IRedisCacheService cache, ITmdbService tmdbService)
         {
             _filmRepo = filmRepo;
             _cache = cache;
+            _tmdbService = tmdbService;
         }
 
         [HttpGet]
@@ -134,6 +136,70 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
                 return NotFound();
             }
             return NoContent();
+        }
+
+        [HttpPost("import-from-tmdb/preview")]
+        [Authorize]
+        public async Task<IActionResult> PreviewImportFromTmdb([FromBody] ImportFilmRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var movies = await _tmdbService.FetchPopularMoviesAsync(request.Page, request.Limit);
+                var filmDtos = movies.Select(m => m.ToFilmDto()).ToList();
+                
+                return Ok(new 
+                { 
+                    Message = "Preview only - these films will NOT be saved to database",
+                    Count = filmDtos.Count,
+                    Films = filmDtos 
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        [HttpPost("import-from-tmdb")]
+        [Authorize]
+        public async Task<IActionResult> ImportFromTmdb([FromBody] ImportFilmRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var movies = await _tmdbService.FetchPopularMoviesAsync(request.Page, request.Limit);
+                var savedFilms = new List<Films>();
+
+                foreach (var movie in movies)
+                {
+                    // Check if film already exists by name
+                    var existingFilms = await _filmRepo.GetByNameAsync(movie.Name);
+                    if (!existingFilms.Any())
+                    {
+                        var savedFilm = await _filmRepo.CreateAsync(movie);
+                        savedFilms.Add(savedFilm);
+                    }
+                }
+
+                // Invalidate cache after import
+                await _cache.RemoveCacheValueAsync("films_list_*");
+
+                return Ok(new 
+                { 
+                    Message = $"Successfully imported {savedFilms.Count} films from TMDB",
+                    Count = savedFilms.Count,
+                    Films = savedFilms.Select(f => f.ToFilmDto()).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = ex.Message });
+            }
         }
     }
 }

@@ -28,8 +28,9 @@ namespace api.Dtos.FilmDto
 
         public string? CoverImageUrl { get; set; } 
 
-
         public string? TrailerUrl { get; set; } 
+
+        public int? TmdbId { get; set; }
 
         public List<CommentDto> Comments { get; set; } = new List<CommentDto>();
     }

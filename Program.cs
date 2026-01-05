@@ -207,8 +207,7 @@ builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
 builder.Services.AddScoped<ICommentLikePortfolioRepository, CommentLikePortfolioRepository>();
-
-
+builder.Services.AddHttpClient<ITmdbService, TmdbService>();
 
 var app = builder.Build();
 
