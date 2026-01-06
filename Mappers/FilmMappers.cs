@@ -23,8 +23,9 @@ namespace api.Mappers
                 ReleaseYear = filmModel.ReleaseYear,
                 Duration = filmModel.Duration,
                 Platform = filmModel.Platform,
-                CoverImageUrl = filmModel.CoverImageUrl, // Yeni özellik
+                CoverImageUrl = filmModel.CoverImageUrl,
                 TrailerUrl = filmModel.TrailerUrl,
+                TmdbId = filmModel.TmdbId, // Add TmdbId mapping
                 Comments = filmModel.Comments.Select(c => c.ToCommentDto()).ToList()
             };
         }
