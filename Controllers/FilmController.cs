@@ -141,6 +141,7 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
         }
 
         [HttpPost("import-from-tmdb/preview")]
+        [AllowAnonymous]
         public async Task<IActionResult> PreviewImportFromTmdb([FromBody] ImportFilmRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -206,13 +207,24 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
             {
                 var movies = await _tmdbService.FetchPopularMoviesAsync(request.Page, request.Limit, request.GenreId);
                 var savedFilms = new List<Films>();
+                var updatedFilms = new List<Films>();
 
                 foreach (var movie in movies)
                 {
-                    // Check if film already exists by name
-                    var existingFilms = await _filmRepo.GetByNameAsync(movie.Name);
-                    if (!existingFilms.Any())
+                    // TmdbId ile kontrol et ve gerekirse güncelle
+                    var existingFilm = movie.TmdbId.HasValue 
+                        ? await _filmRepo.GetByTmdbIdAsync(movie.TmdbId.Value) 
+                        : null;
+
+                    if (existingFilm != null)
                     {
+                        // Film zaten var, güncelle
+                        var updated = await _filmRepo.CreateOrUpdateAsync(movie);
+                        updatedFilms.Add(updated);
+                    }
+                    else
+                    {
+                        // Yeni film oluştur
                         var savedFilm = await _filmRepo.CreateAsync(movie);
                         savedFilms.Add(savedFilm);
                     }
@@ -223,9 +235,61 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
 
                 return Ok(new 
                 { 
-                    Message = $"Successfully imported {savedFilms.Count} films from TMDB",
-                    Count = savedFilms.Count,
+                    Message = $"Import completed: {savedFilms.Count} new, {updatedFilms.Count} updated",
+                    NewFilms = savedFilms.Count,
+                    UpdatedFilms = updatedFilms.Count,
                     Films = savedFilms.Select(f => f.ToFilmDto()).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        [HttpPost("search-tmdb")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SearchTmdb([FromBody] SearchTmdbRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (string.IsNullOrWhiteSpace(request.Query))
+                return BadRequest("Search query cannot be empty");
+
+            try
+            {
+                // Cache key for search results
+                var cacheKey = $"tmdb_search_{request.Query.ToLower().Replace(" ", "_")}_p{request.Page}";
+                
+                // Try cache first
+                var cachedResults = await _cache.GetCacheValueAsync<List<FilmDto>>(cacheKey);
+                if (cachedResults != null)
+                {
+                    return Ok(new 
+                    { 
+                        Message = "Search results from cache",
+                        Query = request.Query,
+                        Count = cachedResults.Count,
+                        Films = cachedResults,
+                        Cached = true
+                    });
+                }
+
+                // Search TMDB
+                var movies = await _tmdbService.SearchMoviesAsync(request.Query, request.Page, request.Limit);
+                var filmDtos = movies.Select(m => m.ToFilmDto()).ToList();
+                
+                // Cache for 1 hour (search results change less frequently)
+                await _cache.SetCacheValueAsync(cacheKey, filmDtos, TimeSpan.FromHours(1));
+                
+                return Ok(new 
+                { 
+                    Message = "Search results from TMDB",
+                    Query = request.Query,
+                    Count = filmDtos.Count,
+                    Films = filmDtos,
+                    Cached = false
                 });
             }
             catch (Exception ex)

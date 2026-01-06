@@ -123,9 +123,53 @@ namespace api.Repository
             return _context.Films.AnyAsync(s => s.Id == id);
         }
 
+        public Task<bool> FilmExistsByTmdbId(int tmdbId)
+        {
+            return _context.Films.AnyAsync(s => s.TmdbId == tmdbId);
+        }
+
         public async Task<Films?> GetByNameAsync2(string name)
         {
             return await _context.Films.FirstOrDefaultAsync(s => s.Name == name);
+        }
+
+        public async Task<Films?> GetByTmdbIdAsync(int tmdbId)
+        {
+            return await _context.Films
+                .Include(c => c.Comments)
+                .ThenInclude(a => a.AppUser)
+                .FirstOrDefaultAsync(s => s.TmdbId == tmdbId);
+        }
+
+        public async Task<Films> CreateOrUpdateAsync(Films filmModel)
+        {
+            // TmdbId varsa önce kontrol et
+            if (filmModel.TmdbId.HasValue)
+            {
+                var existing = await GetByTmdbIdAsync(filmModel.TmdbId.Value);
+                if (existing != null)
+                {
+                    // Film zaten var, güncelle
+                    existing.Name = filmModel.Name;
+                    existing.IMDbRating = filmModel.IMDbRating;
+                    existing.Description = filmModel.Description;
+                    existing.Genre = filmModel.Genre;
+                    existing.Director = filmModel.Director;
+                    existing.LeadActors = filmModel.LeadActors;
+                    existing.ReleaseYear = filmModel.ReleaseYear;
+                    existing.Duration = filmModel.Duration;
+                    existing.Platform = filmModel.Platform;
+                    existing.CoverImageUrl = filmModel.CoverImageUrl;
+                    existing.TrailerUrl = filmModel.TrailerUrl;
+                    await _context.SaveChangesAsync();
+                    return existing;
+                }
+            }
+            
+            // Film yok, yeni oluştur
+            await _context.Films.AddAsync(filmModel);
+            await _context.SaveChangesAsync();
+            return filmModel;
         }
     }
 }

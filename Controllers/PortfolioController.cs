@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using api.Dtos.Film;
 using api.Extensions;
 using api.Interfaces;
 using api.Model;
@@ -39,29 +40,66 @@ namespace api.Controllers
 
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> AddPortfolio([FromBody]string name){
+        public async Task<IActionResult> AddPortfolio([FromBody] AddFilmToPortfolioDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             var username = User.GetUsername();
-            var AppUser = await _userManager.FindByNameAsync(username);
-            var film = await _filmRepo.GetByNameAsync2(name);
+            var appUser = await _userManager.FindByNameAsync(username);
             
-            if(film==null) return BadRequest("Film not found");
+            Films film;
 
-            var userPortfolio = await _portfolioRepo.GetUserPortfolio(AppUser);
+            // TmdbId varsa önce ona göre kontrol et
+            if (dto.TmdbId.HasValue)
+            {
+                film = await _filmRepo.GetByTmdbIdAsync(dto.TmdbId.Value);
+                
+                // Film yoksa oluştur
+                if (film == null)
+                {
+                    film = new Films
+                    {
+                        TmdbId = dto.TmdbId,
+                        Name = dto.Name,
+                        IMDbRating = dto.IMDbRating,
+                        Description = dto.Description,
+                        Genre = dto.Genre,
+                        Director = dto.Director,
+                        LeadActors = dto.LeadActors,
+                        ReleaseYear = dto.ReleaseYear,
+                        Duration = dto.Duration,
+                        Platform = dto.Platform,
+                        CoverImageUrl = dto.CoverImageUrl,
+                        TrailerUrl = dto.TrailerUrl
+                    };
+                    
+                    film = await _filmRepo.CreateAsync(film);
+                }
+            }
+            else
+            {
+                // TmdbId yoksa isme göre ara
+                film = await _filmRepo.GetByNameAsync2(dto.Name);
+                
+                if (film == null)
+                    return BadRequest("Film not found and no TmdbId provided");
+            }
 
-            if(userPortfolio.Any(e => e.Name.ToLower()== name.ToLower())) return BadRequest("Cannot add same film to portfolio");
+            // Portfolyoda zaten var mı kontrol et
+            var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
+            if (userPortfolio.Any(e => e.FilmId == film.Id))
+                return BadRequest("Film already in portfolio");
 
             var portfolioModel = new Portfolio
             {
                 FilmId = film.Id,
-                AppUserId = AppUser.Id
+                AppUserId = appUser.Id
             };
+
             await _portfolioRepo.CreateAsync(portfolioModel);
-            if(portfolioModel ==null){
-                return StatusCode(500,"Could not create");
-            }else{
-                return Created();
-            }
+            
+            return CreatedAtAction(nameof(GetUserPortfolio), new { filmId = film.Id }, film);
         }
 
         [HttpDelete]

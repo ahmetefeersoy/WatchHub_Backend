@@ -59,7 +59,7 @@ if (!ModelState.IsValid)
         [HttpPost("{filmId:int}")]
         public async Task<IActionResult> Create([FromRoute] int filmId, CreateCommentDto commentDto)
         {
-if (!ModelState.IsValid)
+            if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             if (!await _filmRepo.FilmExists(filmId))
@@ -72,6 +72,70 @@ if (!ModelState.IsValid)
 
             var commentModel = commentDto.ToCommentFromCreate(filmId);
             commentModel.AppUserId = appUser.Id;
+            await _commentRepo.CreateAsync(commentModel);
+            return CreatedAtAction(nameof(GetById), new { id = commentModel.Id }, commentModel.ToCommentDto());
+        }
+
+        // TMDB'den gelen filmler için yeni endpoint - film yoksa oluşturur
+        [HttpPost("with-film")]
+        public async Task<IActionResult> CreateWithFilm([FromBody] CreateCommentWithFilmDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var username = User.GetUsername();
+            var appUser = await _userManager.FindByNameAsync(username);
+
+            Films film;
+
+            // Mevcut FilmId varsa onu kullan
+            if (dto.FilmId.HasValue)
+            {
+                film = await _filmRepo.GetByIdAsync(dto.FilmId.Value);
+                if (film == null)
+                    return BadRequest("Film not found");
+            }
+            // TmdbId varsa ona göre bul veya oluştur
+            else if (dto.TmdbId.HasValue)
+            {
+                film = await _filmRepo.GetByTmdbIdAsync(dto.TmdbId.Value);
+                
+                if (film == null)
+                {
+                    // Film yoksa oluştur
+                    film = new Films
+                    {
+                        TmdbId = dto.TmdbId,
+                        Name = dto.FilmName ?? "Unknown",
+                        IMDbRating = dto.IMDbRating ?? 0,
+                        Description = dto.Description ?? string.Empty,
+                        Genre = dto.Genre ?? string.Empty,
+                        Director = dto.Director ?? string.Empty,
+                        LeadActors = dto.LeadActors ?? string.Empty,
+                        ReleaseYear = dto.ReleaseYear ?? DateTime.Now.Year,
+                        Duration = dto.Duration ?? 0,
+                        Platform = dto.Platform ?? "Unknown",
+                        CoverImageUrl = dto.CoverImageUrl,
+                        TrailerUrl = dto.TrailerUrl
+                    };
+                    
+                    film = await _filmRepo.CreateAsync(film);
+                }
+            }
+            else
+            {
+                return BadRequest("Either FilmId or TmdbId must be provided");
+            }
+
+            // Yorumu oluştur
+            var commentModel = new Comment
+            {
+                StarRating = dto.StarRating,
+                Content = dto.Content,
+                FilmId = film.Id,
+                AppUserId = appUser.Id
+            };
+
             await _commentRepo.CreateAsync(commentModel);
             return CreatedAtAction(nameof(GetById), new { id = commentModel.Id }, commentModel.ToCommentDto());
         }

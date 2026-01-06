@@ -6,6 +6,8 @@ namespace api.Dtos.Film
 {
     public class CreateFilmRequestDto
     {
+        public int? TmdbId { get; set; }
+        
         [Required]
         [MaxLength(50, ErrorMessage = "Name cannot be over 50 characters")]
         public string Name { get; set; } = string.Empty;

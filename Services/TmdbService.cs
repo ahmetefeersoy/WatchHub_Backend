@@ -7,6 +7,7 @@ namespace api.Services
     public interface ITmdbService
     {
         Task<List<Films>> FetchPopularMoviesAsync(int page = 1, int limit = 5, int? genreId = null);
+        Task<List<Films>> SearchMoviesAsync(string query, int page = 1, int limit = 20);
         Task<Films> FetchMovieDetailsAsync(int tmdbId);
     }
 
@@ -166,6 +167,65 @@ namespace api.Services
                     ? $"https://www.youtube.com/watch?v={trailer.Key}" 
                     : null
             };
+        }
+
+        public async Task<List<Films>> SearchMoviesAsync(string query, int page = 1, int limit = 20)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(query))
+                    return new List<Films>();
+
+                var endpoint = !string.IsNullOrEmpty(_accessToken)
+                    ? $"{_baseUrl}/search/movie?query={Uri.EscapeDataString(query)}&page={page}&language=en-US"
+                    : $"{_baseUrl}/search/movie?api_key={_apiKey}&query={Uri.EscapeDataString(query)}&page={page}&language=en-US";
+
+                var response = await _httpClient.GetAsync(endpoint);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"TMDB API search error: {response.StatusCode} - {errorContent}");
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var tmdbResponse = JsonSerializer.Deserialize<TmdbMovieResponse>(content, options);
+                
+                if (tmdbResponse?.Results == null || !tmdbResponse.Results.Any())
+                    return new List<Films>();
+
+                // Convert TMDB movies to Films, limited by the limit parameter
+                var films = new List<Films>();
+                var moviesToFetch = tmdbResponse.Results.Take(limit);
+
+                foreach (var movie in moviesToFetch)
+                {
+                    try
+                    {
+                        var filmDetails = await FetchMovieDetailsAsync(movie.Id);
+                        if (filmDetails != null)
+                        {
+                            films.Add(filmDetails);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to fetch details for movie {movie.Id}: {ex.Message}");
+                        // Continue with next movie even if one fails
+                    }
+                }
+
+                return films;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to search TMDB movies: {ex.Message}", ex);
+            }
         }
     }
 
