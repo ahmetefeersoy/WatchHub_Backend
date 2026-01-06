@@ -88,7 +88,7 @@ namespace api.Controllers
 
             // Portfolyoda zaten var mı kontrol et
             var userPortfolio = await _portfolioRepo.GetUserPortfolio(appUser);
-            if (userPortfolio.Any(e => e.FilmId == film.Id))
+            if (userPortfolio.Any(e => e.Id == film.Id))
                 return BadRequest("Film already in portfolio");
 
             var portfolioModel = new Portfolio
