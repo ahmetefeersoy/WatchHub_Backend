@@ -96,18 +96,25 @@ namespace api.Controllers
             return Ok(filmDto);
         }
 
-      [HttpPost]
-public async Task<IActionResult> Create([FromBody] CreateFilmRequestDto filmDto)
-{   
-    if (!ModelState.IsValid)
-        return BadRequest(ModelState);
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> Create([FromBody] CreateFilmRequestDto filmDto)
+        {   
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-    var filmModel = filmDto.ToFilmFromCreateDto();
-    await _filmRepo.CreateAsync(filmModel);
+            try 
+            {
+                var filmModel = filmDto.ToFilmFromCreateDto();
+                await _filmRepo.CreateAsync(filmModel);
 
-    // Düzeltme: Film oluşturulmadan önce filmModel.Id ayarlanmalıdır.
-    return CreatedAtAction(nameof(GetById), new { id = filmModel.Id }, filmModel.ToFilmDto());
-}
+                return CreatedAtAction(nameof(GetById), new { id = filmModel.Id }, filmModel.ToFilmDto());
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = "Failed to create film", Details = ex.Message, Inner = ex.InnerException?.Message });
+            }
+        }
 
 
        [HttpPut("{id:int}")]
