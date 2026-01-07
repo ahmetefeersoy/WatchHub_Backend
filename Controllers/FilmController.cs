@@ -149,6 +149,11 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
         [HttpPost("import-from-tmdb/preview")]
         public async Task<IActionResult> PreviewImportFromTmdb([FromBody] ImportFilmRequestDto request)
         {
+            // Log authentication info
+            Console.WriteLine($"🔐 PreviewImportFromTmdb - User authenticated: {User.Identity?.IsAuthenticated}");
+            Console.WriteLine($"🔐 PreviewImportFromTmdb - User name: {User.Identity?.Name}");
+            Console.WriteLine($"🔐 PreviewImportFromTmdb - Claims count: {User.Claims.Count()}");
+            
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
