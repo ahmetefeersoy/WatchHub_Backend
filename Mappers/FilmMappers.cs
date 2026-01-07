@@ -44,7 +44,8 @@ namespace api.Mappers
                 Duration = filmDto.Duration,
                 Platform = filmDto.Platform,
                 CoverImageUrl = filmDto.CoverImageUrl, // Yeni özellik
-                TrailerUrl= filmDto.TrailerUrl
+                TrailerUrl= filmDto.TrailerUrl,
+                TmdbId = filmDto.TmdbId
             };
         }
     }
