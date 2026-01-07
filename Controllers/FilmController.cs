@@ -97,7 +97,6 @@ namespace api.Controllers
         }
 
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> Create([FromBody] CreateFilmRequestDto filmDto)
         {   
             if (!ModelState.IsValid)
@@ -148,7 +147,6 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
         }
 
         [HttpPost("import-from-tmdb/preview")]
-        [AllowAnonymous]
         public async Task<IActionResult> PreviewImportFromTmdb([FromBody] ImportFilmRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -255,7 +253,6 @@ public async Task<IActionResult> Update([FromRoute]int id, [FromBody] UpdateFilm
         }
 
         [HttpPost("search-tmdb")]
-        [AllowAnonymous]
         public async Task<IActionResult> SearchTmdb([FromBody] SearchTmdbRequestDto request)
         {
             if (!ModelState.IsValid)
