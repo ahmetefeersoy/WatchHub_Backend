@@ -18,7 +18,7 @@ namespace api.Model
         public string Content { get; set; } = string.Empty;
         public bool ContainsSpoiler { get; set; } = false;
 
-        public DateTime CreatedOn { get; set; } = DateTime.Now;
+        public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
         public int? FilmId { get; set; }
 
         public Films? Film { get; set; } 

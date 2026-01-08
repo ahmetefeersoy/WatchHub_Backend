@@ -65,29 +65,47 @@ namespace api.Middleware
                                     Console.WriteLine($"  - {claim.Type}: {claim.Value}");
                                 }
                                 
-                                // user_metadata'dan username'i çıkar
-                                var userMetadataClaim = principal.Claims.FirstOrDefault(c => c.Type == "user_metadata");
-                                if (userMetadataClaim != null)
+                                // Supabase JWT'de username direkt claim olarak veya user_metadata içinde olabilir
+                                var claims = principal.Claims.ToList();
+                                string? username = null;
+                                
+                                // 1. Önce direkt 'username' claim'ine bak
+                                username = principal.Claims.FirstOrDefault(c => c.Type == "username")?.Value;
+                                
+                                // 2. Yoksa 'user_metadata' içinde JSON olarak bak
+                                if (string.IsNullOrEmpty(username))
                                 {
-                                    try
+                                    var userMetadataClaim = principal.Claims.FirstOrDefault(c => 
+                                        c.Type == "user_metadata" || c.Type == "raw_user_meta_data");
+                                    
+                                    if (userMetadataClaim != null)
                                     {
-                                        var metadata = System.Text.Json.JsonDocument.Parse(userMetadataClaim.Value);
-                                        if (metadata.RootElement.TryGetProperty("username", out var usernameProp))
+                                        try
                                         {
-                                            var username = usernameProp.GetString();
-                                            Console.WriteLine($"✅ Username from metadata: {username}");
-                                            
-                                            // Username'i claim olarak ekle
-                                            var claims = principal.Claims.ToList();
-                                            claims.Add(new Claim("username", username));
-                                            var identity = new ClaimsIdentity(claims, "Supabase");
-                                            principal = new ClaimsPrincipal(identity);
+                                            var metadata = System.Text.Json.JsonDocument.Parse(userMetadataClaim.Value);
+                                            if (metadata.RootElement.TryGetProperty("username", out var usernameProp))
+                                            {
+                                                username = usernameProp.GetString();
+                                            }
+                                        }
+                                        catch (Exception metaEx)
+                                        {
+                                            Console.WriteLine($"⚠️ Failed to parse user_metadata: {metaEx.Message}");
                                         }
                                     }
-                                    catch (Exception metaEx)
-                                    {
-                                        Console.WriteLine($"⚠️ Failed to parse user_metadata: {metaEx.Message}");
-                                    }
+                                }
+                                
+                                // Username bulunduysa claim olarak ekle
+                                if (!string.IsNullOrEmpty(username))
+                                {
+                                    Console.WriteLine($"✅ Username from JWT: {username}");
+                                    claims.Add(new Claim("username", username));
+                                    var identity = new ClaimsIdentity(claims, "Supabase");
+                                    principal = new ClaimsPrincipal(identity);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("⚠️ No username found in JWT claims");
                                 }
                                 
                                 context.User = principal;
