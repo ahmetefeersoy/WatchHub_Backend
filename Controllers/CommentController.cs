@@ -25,25 +25,41 @@ namespace api.Controllers
         private readonly IFilmRepository _filmRepo;
         private readonly UserManager<AppUser> _userManager;
         private readonly IProfanityFilterService _profanityFilter;
+        private readonly IRedisCacheService _cache;
 
-        public CommentController(ICommentRepository commentRepo, IFilmRepository filmRepo, UserManager<AppUser> userManager, IProfanityFilterService profanityFilter)
+        public CommentController(ICommentRepository commentRepo, IFilmRepository filmRepo, UserManager<AppUser> userManager, IProfanityFilterService profanityFilter, IRedisCacheService cache)
         {
             _commentRepo = commentRepo;
             _filmRepo = filmRepo;
             _userManager = userManager;
             _profanityFilter = profanityFilter;
+            _cache = cache;
         }
 
         [HttpGet]
         public async Task<ActionResult> GetAll()
         {
-if (!ModelState.IsValid)
+            if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var comments = await _commentRepo.GetAllAsync();
-            var CommentDto = comments.Select(s => s.ToCommentDto());
+            // Cache'den kontrol et
+            var cacheKey = "all_comments";
+            var cachedComments = await _cache.GetCacheValueAsync<IEnumerable<CommentDto>>(cacheKey);
+            
+            if (cachedComments != null)
+            {
+                Console.WriteLine("💾 Returning comments from cache");
+                return Ok(cachedComments);
+            }
 
-            return Ok(CommentDto);
+            Console.WriteLine("🔄 Fetching comments from database");
+            var comments = await _commentRepo.GetAllAsync();
+            var commentDto = comments.Select(s => s.ToCommentDto()).ToList();
+            
+            // Cache'e kaydet (5 dakika)
+            await _cache.SetCacheValueAsync(cacheKey, commentDto, TimeSpan.FromMinutes(5));
+
+            return Ok(commentDto);
         }
 
         [HttpGet("{id:int}")]
@@ -84,6 +100,11 @@ if (!ModelState.IsValid)
             var commentModel = commentDto.ToCommentFromCreate(filmId);
             commentModel.AppUserId = appUser.Id;
             await _commentRepo.CreateAsync(commentModel);
+            
+            // Cache'i temizle
+            await _cache.RemoveCacheValueAsync("all_comments");
+            Console.WriteLine("🗑️ Cache cleared after comment creation");
+            
             return CreatedAtAction(nameof(GetById), new { id = commentModel.Id }, commentModel.ToCommentDto());
         }
 
@@ -202,6 +223,11 @@ if (!ModelState.IsValid)
                 };
 
                 await _commentRepo.CreateAsync(commentModel);
+                
+                // Cache'i temizle
+                await _cache.RemoveCacheValueAsync("all_comments");
+                Console.WriteLine("🗑️ Cache cleared after comment creation");
+                
                 return CreatedAtAction(nameof(GetById), new { id = commentModel.Id }, commentModel.ToCommentDto());
             }
             catch (Exception ex)
@@ -229,6 +255,10 @@ if (!ModelState.IsValid)
             {
                 return NotFound("Comment does not exist");
             }
+            
+            // Cache'i temizle
+            await _cache.RemoveCacheValueAsync("all_comments");
+            Console.WriteLine("🗑️ Cache cleared after comment deletion");
             
             return Ok(commentModel);
         }

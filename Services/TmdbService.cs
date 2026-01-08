@@ -18,14 +18,16 @@ namespace api.Services
         private readonly string _accessToken;
         private readonly string _baseUrl;
         private readonly string _imageBaseUrl;
+        private readonly IRedisCacheService _cache;
 
-        public TmdbService(HttpClient httpClient, IConfiguration configuration)
+        public TmdbService(HttpClient httpClient, IConfiguration configuration, IRedisCacheService cache)
         {
             _httpClient = httpClient;
             _apiKey = configuration["TMDB:ApiKey"] ?? throw new InvalidOperationException("TMDB API Key not configured");
             _accessToken = configuration["TMDB:AccessToken"] ?? "";
             _baseUrl = configuration["TMDB:BaseUrl"] ?? "https://api.themoviedb.org/3";
             _imageBaseUrl = configuration["TMDB:ImageBaseUrl"] ?? "https://image.tmdb.org/t/p";
+            _cache = cache;
             
             // Set headers for TMDB API v4 (Bearer token preferred)
             _httpClient.DefaultRequestHeaders.Clear();
@@ -43,6 +45,18 @@ namespace api.Services
         {
             try
             {
+                // Cache key based on parameters
+                var cacheKey = $"tmdb_popular_{page}_{limit}_{genreId}";
+                var cachedMovies = await _cache.GetCacheValueAsync<List<Films>>(cacheKey);
+                
+                if (cachedMovies != null)
+                {
+                    Console.WriteLine($"💾 Returning popular movies from cache (genre:{genreId})");
+                    return cachedMovies;
+                }
+                
+                Console.WriteLine($"🔄 Fetching popular movies from TMDB API (genre:{genreId})");
+                
                 // Use discover endpoint if genre is specified, otherwise use popular
                 string endpoint;
                 if (genreId.HasValue)
@@ -88,6 +102,9 @@ namespace api.Services
                     }
                 }
 
+                // Cache for 8 hours (popular movies don't change frequently)
+                await _cache.SetCacheValueAsync(cacheKey, movies, TimeSpan.FromHours(8));
+                
                 return movies;
             }
             catch (Exception ex)
@@ -100,6 +117,18 @@ namespace api.Services
         {
             try
             {
+                // Cache key for movie details
+                var cacheKey = $"tmdb_movie_{tmdbId}";
+                var cachedMovie = await _cache.GetCacheValueAsync<Films>(cacheKey);
+                
+                if (cachedMovie != null)
+                {
+                    Console.WriteLine($"💾 Returning movie details from cache (ID:{tmdbId})");
+                    return cachedMovie;
+                }
+                
+                Console.WriteLine($"🔄 Fetching movie details from TMDB API (ID:{tmdbId})");
+                
                 // Use Bearer token if available, otherwise use api_key parameter
                 var url = !string.IsNullOrEmpty(_accessToken)
                     ? $"{_baseUrl}/movie/{tmdbId}?language=en-US&append_to_response=videos,credits"
@@ -124,7 +153,12 @@ namespace api.Services
                     throw new Exception($"Failed to deserialize movie details for ID: {tmdbId}");
                 }
 
-                return MapTmdbMovieToFilm(movieDetails);
+                var film = MapTmdbMovieToFilm(movieDetails);
+                
+                // Cache for 24 hours (movie details rarely change)
+                await _cache.SetCacheValueAsync(cacheKey, film, TimeSpan.FromHours(24));
+                
+                return film;
             }
             catch (Exception ex)
             {
@@ -176,6 +210,18 @@ namespace api.Services
                 if (string.IsNullOrWhiteSpace(query))
                     return new List<Films>();
 
+                // Cache key for search results
+                var cacheKey = $"tmdb_search_{query.ToLower()}_{page}_{limit}";
+                var cachedResults = await _cache.GetCacheValueAsync<List<Films>>(cacheKey);
+                
+                if (cachedResults != null)
+                {
+                    Console.WriteLine($"💾 Returning search results from cache (query:{query})");
+                    return cachedResults;
+                }
+                
+                Console.WriteLine($"🔄 Fetching search results from TMDB API (query:{query})");
+
                 var endpoint = !string.IsNullOrEmpty(_accessToken)
                     ? $"{_baseUrl}/search/movie?query={Uri.EscapeDataString(query)}&page={page}&language=en-US"
                     : $"{_baseUrl}/search/movie?api_key={_apiKey}&query={Uri.EscapeDataString(query)}&page={page}&language=en-US";
@@ -219,6 +265,9 @@ namespace api.Services
                         // Continue with next movie even if one fails
                     }
                 }
+
+                // Cache for 2 hours (search results can be cached but not too long)
+                await _cache.SetCacheValueAsync(cacheKey, films, TimeSpan.FromHours(2));
 
                 return films;
             }
