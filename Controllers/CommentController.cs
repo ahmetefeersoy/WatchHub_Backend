@@ -90,72 +90,91 @@ if (!ModelState.IsValid)
         [HttpPost("with-film")]
         public async Task<IActionResult> CreateWithFilm([FromBody] CreateCommentWithFilmDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            // Küfür kontrolü
-            if (_profanityFilter.ContainsProfanity(dto.Content))
+            try
             {
-                return BadRequest(new { message = "Your comment contains inappropriate language. Please revise your comment.", 
-                                       messagetr = "Yorumunuz uygunsuz içerik barındırıyor. Lütfen yorumunuzu düzenleyin." });
-            }
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
 
-            var username = User.GetUsername();
-            var appUser = await _userManager.FindByNameAsync(username);
-
-            Films film;
-
-            // Mevcut FilmId varsa onu kullan
-            if (dto.FilmId.HasValue)
-            {
-                film = await _filmRepo.GetByIdAsync(dto.FilmId.Value);
-                if (film == null)
-                    return BadRequest("Film not found");
-            }
-            // TmdbId varsa ona göre bul veya oluştur
-            else if (dto.TmdbId.HasValue)
-            {
-                film = await _filmRepo.GetByTmdbIdAsync(dto.TmdbId.Value);
-                
-                if (film == null)
+                // Küfür kontrolü
+                if (_profanityFilter.ContainsProfanity(dto.Content))
                 {
-                    // Film yoksa oluştur
-                    film = new Films
-                    {
-                        TmdbId = dto.TmdbId,
-                        Name = dto.FilmName ?? "Unknown",
-                        IMDbRating = dto.IMDbRating ?? 0,
-                        Description = dto.Description ?? string.Empty,
-                        Genre = dto.Genre ?? string.Empty,
-                        Director = dto.Director ?? string.Empty,
-                        LeadActors = dto.LeadActors ?? string.Empty,
-                        ReleaseYear = dto.ReleaseYear ?? DateTime.Now.Year,
-                        Duration = dto.Duration ?? 0,
-                        Platform = dto.Platform ?? "Unknown",
-                        CoverImageUrl = dto.CoverImageUrl,
-                        TrailerUrl = dto.TrailerUrl
-                    };
-                    
-                    film = await _filmRepo.CreateAsync(film);
+                    return BadRequest(new { message = "Your comment contains inappropriate language. Please revise your comment.", 
+                                           messagetr = "Yorumunuz uygunsuz içerik barındırıyor. Lütfen yorumunuzu düzenleyin." });
                 }
-            }
-            else
-            {
-                return BadRequest("Either FilmId or TmdbId must be provided");
-            }
 
-            // Yorumu oluştur
-            var commentModel = new Comment
-            {
-                StarRating = dto.StarRating,
-                Content = dto.Content,
-                ContainsSpoiler = dto.ContainsSpoiler,
-                FilmId = film.Id,
-                AppUserId = appUser.Id
-            };
+                var username = User.GetUsername();
+                var appUser = await _userManager.FindByNameAsync(username);
+                
+                if (appUser == null)
+                {
+                    return Unauthorized(new { message = "User not found", messagetr = "Kullanıcı bulunamadı" });
+                }
 
-            await _commentRepo.CreateAsync(commentModel);
-            return CreatedAtAction(nameof(GetById), new { id = commentModel.Id }, commentModel.ToCommentDto());
+                Films film;
+
+                // Mevcut FilmId varsa onu kullan
+                if (dto.FilmId.HasValue)
+                {
+                    film = await _filmRepo.GetByIdAsync(dto.FilmId.Value);
+                    if (film == null)
+                        return BadRequest("Film not found");
+                }
+                // TmdbId varsa ona göre bul veya oluştur
+                else if (dto.TmdbId.HasValue)
+                {
+                    film = await _filmRepo.GetByTmdbIdAsync(dto.TmdbId.Value);
+                    
+                    if (film == null)
+                    {
+                        // Film yoksa oluştur
+                        film = new Films
+                        {
+                            TmdbId = dto.TmdbId,
+                            Name = dto.FilmName ?? "Unknown",
+                            IMDbRating = dto.IMDbRating ?? 0,
+                            Description = dto.Description ?? string.Empty,
+                            Genre = dto.Genre ?? string.Empty,
+                            Director = dto.Director ?? string.Empty,
+                            LeadActors = dto.LeadActors ?? string.Empty,
+                            ReleaseYear = dto.ReleaseYear ?? DateTime.Now.Year,
+                            Duration = dto.Duration ?? 0,
+                            Platform = dto.Platform ?? "Unknown",
+                            CoverImageUrl = dto.CoverImageUrl,
+                            TrailerUrl = dto.TrailerUrl
+                        };
+                        
+                        film = await _filmRepo.CreateAsync(film);
+                    }
+                }
+                else
+                {
+                    return BadRequest("Either FilmId or TmdbId must be provided");
+                }
+
+                // Yorumu oluştur
+                var commentModel = new Comment
+                {
+                    StarRating = dto.StarRating,
+                    Content = dto.Content,
+                    ContainsSpoiler = dto.ContainsSpoiler,
+                    FilmId = film.Id,
+                    AppUserId = appUser.Id
+                };
+
+                await _commentRepo.CreateAsync(commentModel);
+                return CreatedAtAction(nameof(GetById), new { id = commentModel.Id }, commentModel.ToCommentDto());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error in CreateWithFilm: {ex.Message}");
+                Console.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new { 
+                    message = "An error occurred while creating the comment", 
+                    messagetr = "Yorum oluşturulurken bir hata oluştu",
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
         }
 
         [HttpDelete]
