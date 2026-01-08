@@ -146,8 +146,6 @@ namespace api.Controllers
             }else{
                 return BadRequest("Film not in your portfolio");
             }
-            return Ok();
-        }
         }
     }
 }
