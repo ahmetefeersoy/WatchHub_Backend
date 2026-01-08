@@ -12,6 +12,8 @@ namespace api.Dtos.Comment
         public string Content { get; set; } = string.Empty;
 
         public int NumberOfLikes { get; set; }
+        
+        public bool ContainsSpoiler { get; set; } = false;
 
         public int StarRating { get; set; }
 

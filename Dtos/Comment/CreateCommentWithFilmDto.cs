@@ -48,7 +48,9 @@ namespace api.Dtos.Comment
 
         [Required]
         [MinLength(10, ErrorMessage = "Content must be at least 10 characters")]
-        [MaxLength(250, ErrorMessage = "Content cannot be over 250 characters")]
+        [MaxLength(250, ErrorMessage = "Content cannot exceed 250 characters")]
         public string Content { get; set; } = string.Empty;
+        
+        public bool ContainsSpoiler { get; set; } = false;
     }
 }

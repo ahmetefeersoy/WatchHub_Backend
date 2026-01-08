@@ -16,6 +16,7 @@ namespace api.Mappers
                 StarRating = commentModel.StarRating,
                 NumberOfLikes = commentModel.NumberOfLikes,
                 Content = commentModel.Content ?? string.Empty, // Null kontrolü
+                ContainsSpoiler = commentModel.ContainsSpoiler,
                 CreatedOn = commentModel.CreatedOn,
                 CreatedBy = commentModel.AppUser?.UserName ?? "Unknown", // Null kontrolü
                 FilmId = commentModel.FilmId
@@ -27,6 +28,7 @@ namespace api.Mappers
             return new Comment{
                 StarRating = commentDto.StarRating,
                 Content = commentDto.Content,
+                ContainsSpoiler = commentDto.ContainsSpoiler,
                 FilmId = filmId
 
             };

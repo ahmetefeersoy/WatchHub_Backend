@@ -99,6 +99,7 @@ else
 }
 
 builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
+builder.Services.AddScoped<IProfanityFilterService, ProfanityFilterService>();
 
 // Supabase Configuration
 var supabaseUrl = builder.Configuration["Supabase:Url"] ?? "https://nevoszkwoejobfokkbjt.supabase.co";

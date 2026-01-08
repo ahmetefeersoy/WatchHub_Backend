@@ -7,6 +7,7 @@ using api.Extensions;
 using api.Interfaces;
 using api.Mappers;
 using api.Model;
+using api.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -22,12 +23,14 @@ namespace api.Controllers
         private readonly ICommentRepository _commentRepo;
         private readonly IFilmRepository _filmRepo;
         private readonly UserManager<AppUser> _userManager;
+        private readonly IProfanityFilterService _profanityFilter;
 
-        public CommentController(ICommentRepository commentRepo, IFilmRepository filmRepo, UserManager<AppUser> userManager)
+        public CommentController(ICommentRepository commentRepo, IFilmRepository filmRepo, UserManager<AppUser> userManager, IProfanityFilterService profanityFilter)
         {
             _commentRepo = commentRepo;
             _filmRepo = filmRepo;
             _userManager = userManager;
+            _profanityFilter = profanityFilter;
         }
 
         [HttpGet]
@@ -62,6 +65,13 @@ if (!ModelState.IsValid)
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // Küfür kontrolü
+            if (_profanityFilter.ContainsProfanity(commentDto.Content))
+            {
+                return BadRequest(new { message = "Your comment contains inappropriate language. Please revise your comment.", 
+                                       messagetr = "Yorumunuz uygunsuz içerik barındırıyor. Lütfen yorumunuzu düzenleyin." });
+            }
+
             if (!await _filmRepo.FilmExists(filmId))
             {
                 return BadRequest("Film does not exist");
@@ -82,6 +92,13 @@ if (!ModelState.IsValid)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            // Küfür kontrolü
+            if (_profanityFilter.ContainsProfanity(dto.Content))
+            {
+                return BadRequest(new { message = "Your comment contains inappropriate language. Please revise your comment.", 
+                                       messagetr = "Yorumunuz uygunsuz içerik barındırıyor. Lütfen yorumunuzu düzenleyin." });
+            }
 
             var username = User.GetUsername();
             var appUser = await _userManager.FindByNameAsync(username);
@@ -132,6 +149,7 @@ if (!ModelState.IsValid)
             {
                 StarRating = dto.StarRating,
                 Content = dto.Content,
+                ContainsSpoiler = dto.ContainsSpoiler,
                 FilmId = film.Id,
                 AppUserId = appUser.Id
             };

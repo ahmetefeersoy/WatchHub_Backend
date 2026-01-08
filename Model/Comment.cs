@@ -16,6 +16,7 @@ namespace api.Model
         
         public int NumberOfLikes { get; set; }
         public string Content { get; set; } = string.Empty;
+        public bool ContainsSpoiler { get; set; } = false;
 
         public DateTime CreatedOn { get; set; } = DateTime.Now;
         public int? FilmId { get; set; }
