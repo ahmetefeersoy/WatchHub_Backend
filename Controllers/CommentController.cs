@@ -82,12 +82,8 @@ namespace api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Küfür kontrolü
-            if (_profanityFilter.ContainsProfanity(commentDto.Content))
-            {
-                return BadRequest(new { message = "Your comment contains inappropriate language. Please revise your comment.", 
-                                       messagetr = "Yorumunuz uygunsuz içerik barındırıyor. Lütfen yorumunuzu düzenleyin." });
-            }
+            // Küfür filtrele (uygunsuz kelimeleri *** ile değiştir)
+            var filteredContent = _profanityFilter.FilterProfanity(commentDto.Content);
 
             if (!await _filmRepo.FilmExists(filmId))
             {
@@ -98,6 +94,7 @@ namespace api.Controllers
             var appUser = await _userManager.FindByNameAsync(username);
 
             var commentModel = commentDto.ToCommentFromCreate(filmId);
+            commentModel.Content = filteredContent; // Filtrelenmiş içeriği kullan
             commentModel.AppUserId = appUser.Id;
             await _commentRepo.CreateAsync(commentModel);
             
@@ -117,12 +114,8 @@ namespace api.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
-                // Küfür kontrolü
-                if (_profanityFilter.ContainsProfanity(dto.Content))
-                {
-                    return BadRequest(new { message = "Your comment contains inappropriate language. Please revise your comment.", 
-                                           messagetr = "Yorumunuz uygunsuz içerik barındırıyor. Lütfen yorumunuzu düzenleyin." });
-                }
+                // Küfür filtrele (uygunsuz kelimeleri *** ile değiştir)
+                var filteredContent = _profanityFilter.FilterProfanity(dto.Content);
 
                 // Email ve username'i JWT'den al
                 var email = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
@@ -216,7 +209,7 @@ namespace api.Controllers
                 var commentModel = new Comment
                 {
                     StarRating = dto.StarRating,
-                    Content = dto.Content,
+                    Content = filteredContent, // Filtrelenmiş içeriği kullan
                     ContainsSpoiler = dto.ContainsSpoiler,
                     FilmId = film.Id,
                     AppUserId = appUser.Id
