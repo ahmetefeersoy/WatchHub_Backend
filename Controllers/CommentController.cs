@@ -11,6 +11,7 @@ using api.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 
 namespace api.Controllers
@@ -102,13 +103,52 @@ if (!ModelState.IsValid)
                                            messagetr = "Yorumunuz uygunsuz içerik barındırıyor. Lütfen yorumunuzu düzenleyin." });
                 }
 
-                var username = User.GetUsername();
-                var appUser = await _userManager.FindByNameAsync(username);
+                // Email ve username'i JWT'den al
+                var email = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
+                var username = User.Claims.FirstOrDefault(c => c.Type == "username")?.Value;
+                
+                Console.WriteLine($"📧 Email from JWT: '{email}'");
+                Console.WriteLine($"👤 Username from JWT: '{username}'");
+                
+                if (string.IsNullOrEmpty(email))
+                {
+                    Console.WriteLine("❌ Email is null or empty");
+                    return Unauthorized(new { message = "Email not found in token", messagetr = "Token'da email bulunamadı" });
+                }
+                
+                // Email ile kullanıcı bul veya oluştur
+                var appUser = await _userManager.FindByEmailAsync(email);
                 
                 if (appUser == null)
                 {
-                    return Unauthorized(new { message = "User not found", messagetr = "Kullanıcı bulunamadı" });
+                    Console.WriteLine($"⚠️ User with email '{email}' not found, creating new user");
+                    
+                    // Yeni kullanıcı oluştur
+                    appUser = new AppUser
+                    {
+                        Email = email,
+                        UserName = username ?? email.Split('@')[0], // username yoksa email'den oluştur
+                        EmailConfirmed = true
+                    };
+                    
+                    var result = await _userManager.CreateAsync(appUser);
+                    if (!result.Succeeded)
+                    {
+                        Console.WriteLine($"❌ Failed to create user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                        return StatusCode(500, new { message = "Failed to create user", messagetr = "Kullanıcı oluşturulamadı" });
+                    }
+                    
+                    Console.WriteLine($"✅ User created with ID: {appUser.Id}");
                 }
+                else if (!string.IsNullOrEmpty(username) && appUser.UserName != username)
+                {
+                    // Username güncellenmişse güncelle
+                    appUser.UserName = username;
+                    await _userManager.UpdateAsync(appUser);
+                    Console.WriteLine($"✅ Username updated to: {username}");
+                }
+                
+                Console.WriteLine($"👤 User found/created: {appUser.UserName} ({appUser.Email})");
 
                 Films film;
 

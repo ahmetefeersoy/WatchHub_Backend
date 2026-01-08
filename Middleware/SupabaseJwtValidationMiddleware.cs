@@ -57,6 +57,39 @@ namespace api.Middleware
                             try
                             {
                                 var principal = handler.ValidateToken(token, validationParameters, out var validatedToken);
+                                
+                                // Log all claims for debugging
+                                Console.WriteLine("🔐 JWT Claims:");
+                                foreach (var claim in principal.Claims)
+                                {
+                                    Console.WriteLine($"  - {claim.Type}: {claim.Value}");
+                                }
+                                
+                                // user_metadata'dan username'i çıkar
+                                var userMetadataClaim = principal.Claims.FirstOrDefault(c => c.Type == "user_metadata");
+                                if (userMetadataClaim != null)
+                                {
+                                    try
+                                    {
+                                        var metadata = System.Text.Json.JsonDocument.Parse(userMetadataClaim.Value);
+                                        if (metadata.RootElement.TryGetProperty("username", out var usernameProp))
+                                        {
+                                            var username = usernameProp.GetString();
+                                            Console.WriteLine($"✅ Username from metadata: {username}");
+                                            
+                                            // Username'i claim olarak ekle
+                                            var claims = principal.Claims.ToList();
+                                            claims.Add(new Claim("username", username));
+                                            var identity = new ClaimsIdentity(claims, "Supabase");
+                                            principal = new ClaimsPrincipal(identity);
+                                        }
+                                    }
+                                    catch (Exception metaEx)
+                                    {
+                                        Console.WriteLine($"⚠️ Failed to parse user_metadata: {metaEx.Message}");
+                                    }
+                                }
+                                
                                 context.User = principal;
                             }
                             catch (SecurityTokenExpiredException)
